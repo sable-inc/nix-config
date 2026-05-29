@@ -92,7 +92,6 @@ in
     display = 15;
   };
   programs = {
-    fish.enable = true;
     zsh.enable = true;
   };
   system = {
