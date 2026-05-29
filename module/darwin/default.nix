@@ -30,15 +30,13 @@ in
   };
   homebrew = {
     enable = true;
+    brews = [
+      "livekit-cli"
+    ];
     casks = [
       "ghostty"
       "orbstack"
     ];
-    # masApps = {
-    #   "KakaoTalk" = 869223134;
-    #   "SurfShark" = 1437809329;
-    #   "WhatsApp" = 310633997;
-    # };
     onActivation.autoUpdate = true;
     onActivation.cleanup = "zap";
     onActivation.upgrade = true;
@@ -98,19 +96,16 @@ in
     configurationRevision = self.rev or self.dirtyRev or null;
     defaults = {
       dock = {
-        autohide = true;
-        autohide-delay = 0.0;
-        autohide-time-modifier = 0.0;
         persistent-apps = [
-          "/Applications/Helium.app"
+          "/Applications/Nix Apps/Google Chrome.app"
           "/System/Applications/Mail.app"
           "/System/Applications/Calendar.app"
           "/Applications/Nix Apps/Spotify.app"
+          "/System/Applications/Utilities/Terminal.app/"
           "/Applications/Ghostty.app"
+          "${config.users.users.${user}.home}/Applications/Home Manager Apps/Cursor.app"
           "${config.users.users.${user}.home}/Applications/Home Manager Apps/Visual Studio Code.app"
           "/Applications/Nix Apps/Slack.app"
-          "/Applications/KakaoTalk.app"
-          "/Applications/WhatsApp.app"
           "/System/Applications/System Settings.app"
         ];
         launchanim = false;
