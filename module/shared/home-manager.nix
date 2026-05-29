@@ -24,10 +24,10 @@
       settings = {
         # General
         auto-update = "check";
-        auto-update-channel = "tip";
+        auto-update-channel = "stable";
         clipboard-paste-protection = false;
         clipboard-trim-trailing-spaces = true;
-        command = "${pkgs.fish}/bin/fish --interactive --login";
+        command = "${pkgs.zsh}/bin/zsh";
         confirm-close-surface = false;
         copy-on-select = "clipboard";
         cursor-style = "block";
