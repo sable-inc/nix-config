@@ -95,13 +95,6 @@ in
     fish.enable = true;
     zsh.enable = true;
   };
-  services = {
-    skhd.enable = true;
-    yabai = {
-      enable = true;
-      enableScriptingAddition = true;
-    };
-  };
   system = {
     configurationRevision = self.rev or self.dirtyRev or null;
     defaults = {
