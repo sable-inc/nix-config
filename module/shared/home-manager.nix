@@ -47,41 +47,6 @@
       nix-direnv.enable = true;
       silent = true;
     };
-    fish = {
-      enable = true;
-      binds = {
-        "shift-tab" = {
-          mode = "insert";
-          command = "accept-autosuggestion";
-        };
-      };
-      functions = {
-        fish_greeting = "";
-        fish_mode_prompt = "";
-        fish_prompt = ''
-          echo -n (set_color cyan -o)(prompt_pwd)\n(set_color normal)(set_color black -b white)" $(whoami) "(set_color normal)(set_color white)" "(set_color normal)
-        '';
-      };
-      interactiveShellInit = ''
-        # General
-        set -g fish_key_bindings fish_vi_key_bindings
-        set -g fish_cursor_default block
-        set -g fish_cursor_insert block
-
-        # fzf
-        set -x FZF_DEFAULT_COMMAND "fd --type file"
-        set -x FZF_DEFAULT_OPTS "$FZF_DEFAULT_OPTS \
-        --color=fg+:#c0caf5,bg+:#1a1b26,hl+:#c0caf5 \
-        --color=fg:#c0caf5,bg:#1a1b26,hl:#c0caf5 \
-        --color=info:#7aa2f7,prompt:#7dcfff,pointer:#7dcfff \
-        --color=marker:#9ece6a,spinner:#9ece6a,header:#9ece6a \
-        --info=inline-right \
-        --marker='—' \
-        --pointer='—' \
-        --prompt='— ' \
-        "
-      '';
-    };
     ghostty = {
       enable = true;
       settings = {
@@ -219,7 +184,7 @@
       historyLimit = 50000;
       keyMode = "vi";
       mouse = true;
-      shell = "${pkgs.fish}/bin/fish";
+      shell = "${pkgs.zsh}/bin/zsh";
       terminal = "$TERM";
     };
     vscode = {
