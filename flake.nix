@@ -25,7 +25,7 @@
       nixpkgs,
     }:
     let
-      user = "denniseum";
+      user = "sable";
       localModule = ./local.nix;
       linuxSystems = [
         "x86_64-linux"
@@ -63,7 +63,7 @@
 
           println "''${YELLOW}injecting..."
 
-          ${pkgs.git}/bin/git clone "https://github.com/dseum/nix-config.git" "$TMP_DIR/nix-config" &>/dev/null
+          ${pkgs.git}/bin/git clone "https://github.com/sable-inc/nix-config.git" "$TMP_DIR/nix-config" &>/dev/null
           if [ $? -ne 0 ]; then
               println "''${RED}failed to clone repository"
               exit 1

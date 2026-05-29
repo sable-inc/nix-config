@@ -152,10 +152,6 @@
         };
         init.defaultBranch = "main";
         pull.rebase = true;
-        user = {
-          email = "me@denniseum.com";
-          name = "dseum";
-        };
       };
     };
     neovim = {
