@@ -172,7 +172,7 @@
   "security.workspace.trust.enabled": false,
   "svelte.enable-ts-plugin": true,
   "telemetry.telemetryLevel": "off",
-  "terminal.integrated.defaultProfile.osx": "fish",
+  "terminal.integrated.defaultProfile.osx": "zsh",
   "terminal.integrated.enableMultiLinePasteWarning": "never",
   "terminal.integrated.lineHeight": 1.25,
   "typescript.preferences.importModuleSpecifier": "non-relative",
