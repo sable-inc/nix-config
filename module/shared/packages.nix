@@ -4,6 +4,8 @@
   pkgs.ccache
   pkgs.cmake
   pkgs.cmake-format
+  pkgs.code-cursor
+  pkgs.codex
   pkgs.curlFull
   pkgs.fd
   pkgs.fzf
@@ -15,24 +17,17 @@
   pkgs.jujutsu
   pkgs.kind
   pkgs.luarocks
-  pkgs.mupdf
   pkgs.ninja
-  pkgs.nixd
-  pkgs.nixfmt
   pkgs.nodejs_22
   pkgs.opam
   (pkgs.pnpm_11.override { nodejs-slim = pkgs.nodejs-slim_22; })
   pkgs.python313
   pkgs.qemu
-  pkgs.R
   pkgs.ripgrep
   pkgs.rustup
   pkgs.tex-fmt
   pkgs.texliveFull
-  pkgs.tinymist
-  pkgs.tmux
   pkgs.tree-sitter
-  pkgs.typst
   pkgs.uv
   pkgs.wget
   pkgs.zig

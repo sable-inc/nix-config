@@ -14,35 +14,6 @@
     stateVersion = "26.05";
   };
   programs = {
-    claude-code = {
-      enable = true;
-      context = ./config/claude-code/CLAUDE.md;
-      settings.tui = "fullscreen";
-    };
-    codex = {
-      enable = false;
-      context = ./config/codex/AGENTS.md;
-      settings = {
-        approval_policy = "on-request";
-        cli_auth_credentials_store = "keyring";
-        feedback.enabled = false;
-        model = "gpt-5.5";
-        model_reasoning_effort = "high";
-        model_reasoning_summary = "concise";
-        model_verbosity = "low";
-        notify = [ "codex-notify" ];
-        personality = "none";
-        plan_mode_reasoning_effort = "high";
-        tui = {
-          notification_method = "auto";
-          notifications = [
-            "agent-turn-complete"
-            "approval-requested"
-          ];
-        };
-        web_search = "live";
-      };
-    };
     direnv = {
       enable = true;
       nix-direnv.enable = true;
