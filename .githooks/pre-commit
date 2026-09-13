@@ -1,0 +1,9 @@
+#!/bin/sh
+# flake.lock is controlled by upstream; the fork must never commit changes to it
+# so rebases stay conflict-free. Enable this hook once per clone with:
+#   git config core.hooksPath .githooks
+if git diff --cached --name-only | grep -qx flake.lock; then
+	echo 'error: flake.lock is upstream-controlled; refusing to commit it.' >&2
+	echo 'unstage it with: git restore --staged flake.lock' >&2
+	exit 1
+fi

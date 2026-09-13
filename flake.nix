@@ -29,7 +29,6 @@
   };
   outputs =
     inputs@{
-      self,
       agenix,
       home-manager,
       nix-darwin,
@@ -38,7 +37,7 @@
       ...
     }:
     let
-      user = "denniseum";
+      user = "sable";
       localModule = ./local.nix;
       linuxSystems = [
         "x86_64-linux"
@@ -69,7 +68,11 @@
           meta.description = "Run ${name}";
         };
       mkInitApp =
-        pkgs: targetDir:
+        pkgs:
+        {
+          targetDir,
+          expectedUser ? null,
+        }:
         let
           app = pkgs.writeShellApplication {
             name = "init";
@@ -79,6 +82,7 @@
             ];
             text = ''
               green="$(printf '\033[1;32m')"
+              red="$(printf '\033[1;31m')"
               yellow="$(printf '\033[1;33m')"
 
               println() {
@@ -90,17 +94,33 @@
               user_name="$(id -un)"
               trap 'rm -rf "$tmp_dir"' EXIT
 
+              ${nixpkgs.lib.optionalString (expectedUser != null) ''
+                if [ "$user_name" != "${expectedUser}" ]; then
+                  println "$red" "expected user ${expectedUser}, got $user_name"
+                  exit 1
+                fi
+              ''}
+
               println "$yellow" "injecting..."
 
-              git clone "https://github.com/dseum/nix-config.git" "$tmp_dir/nix-config" &>/dev/null
+              git clone "https://github.com/sable-inc/nix-config.git" "$tmp_dir/nix-config" &>/dev/null
 
-              if [ -e "$target_dir" ]; then
-                sudo cp -a "$target_dir" "''${target_dir}.backup"
-                sudo rm -rf "$target_dir"
+              if [ -e "$target_dir" ] || [ -L "$target_dir" ]; then
+                backup_dir="''${target_dir}.backup"
+                if [ -e "$backup_dir" ] || [ -L "$backup_dir" ]; then
+                  backup_dir="''${backup_dir}-$(date +%Y%m%d-%H%M%S)-$$"
+                fi
+                if [ -e "$backup_dir" ] || [ -L "$backup_dir" ]; then
+                  println "$red" "backup path already exists: $backup_dir"
+                  exit 1
+                fi
+                sudo mv "$target_dir" "$backup_dir"
+                println "$yellow" "moved existing configuration to $backup_dir"
               fi
 
               sudo mv "$tmp_dir/nix-config" "$target_dir"
               sudo chown -R "$user_name" "$target_dir"
+              git -C "$target_dir" config core.hooksPath .githooks
 
               println "$green" "injected into $target_dir"
             '';
@@ -123,7 +143,7 @@
             name = "build-switch";
             script = ./. + "/target/${system}/build-switch";
           };
-          "init" = mkInitApp pkgs "/etc/nixos";
+          "init" = mkInitApp pkgs { targetDir = "/etc/nixos"; };
           "update" = mkApp pkgs {
             name = "update";
             script = ./target/update;
@@ -149,7 +169,10 @@
             name = "build-switch";
             script = ./. + "/target/${system}/build-switch";
           };
-          "init" = mkInitApp pkgs "/etc/nix-darwin";
+          "init" = mkInitApp pkgs {
+            targetDir = "/etc/nix-darwin";
+            expectedUser = user;
+          };
           "update" = mkApp pkgs {
             name = "update";
             script = ./target/update;

@@ -36,76 +36,16 @@ let
 in
 {
   home = {
-    file.".pi/agent/extensions" = {
-      source = config.lib.file.mkOutOfStoreSymlink (targetDir + "/module/shared/config/pi/extensions");
-      recursive = true;
-    };
-    file.".pi/agent/themes" = {
-      source = config.lib.file.mkOutOfStoreSymlink (targetDir + "/module/shared/config/pi/themes");
-      recursive = true;
-    };
     packages = [ age-secret ];
-    sessionVariables.PI_SKIP_VERSION_CHECK = "1";
-    shellAliases.oc = "opencode";
     stateVersion = "26.05";
   };
   programs = {
-    claude-code = {
-      enable = true;
-      context = ./config/agents/AGENTS.md;
-      skills = {
-        review-abstractions = ./config/agents/skills/review-abstractions;
-        review-comments = ./config/agents/skills/review-comments;
-        review-workflows = ./config/agents/skills/review-workflows;
-      };
-      settings = {
-        tui = "fullscreen";
-        extraKnownMarketplaces.svelte.source = {
-          source = "github";
-          repo = "sveltejs/ai-tools";
-        };
-        enabledPlugins = {
-          "svelte@svelte" = true;
-          "frontend-design@claude-plugins-official" = true;
-        };
-      };
-    };
-    codex = {
-      enable = true;
-      context = ./config/agents/AGENTS.md;
-      skills = {
-        review-abstractions = ./config/agents/skills/review-abstractions;
-        review-comments = ./config/agents/skills/review-comments;
-        review-workflows = ./config/agents/skills/review-workflows;
-      };
-    };
+    claude-code.enable = true;
+    codex.enable = true;
     direnv = {
       enable = true;
       nix-direnv.enable = true;
       silent = true;
-    };
-    fish = {
-      enable = true;
-      binds = {
-        "shift-tab" = {
-          mode = "insert";
-          command = "accept-autosuggestion";
-        };
-      };
-      functions = {
-        fish_greeting = "";
-        fish_mode_prompt = "";
-        tpi = "tmux new-session -A -s pi pi";
-        fish_prompt = ''
-          echo -n (set_color cyan -o)(prompt_pwd)\n(set_color normal)(set_color black -b white)" $USER "(set_color normal)(set_color white)" "(set_color normal)
-        '';
-      };
-      interactiveShellInit = ''
-        # General
-        set -g fish_key_bindings fish_vi_key_bindings
-        set -g fish_cursor_default block
-        set -g fish_cursor_insert block
-      '';
     };
     fzf = {
       enable = true;
@@ -136,10 +76,10 @@ in
       settings = {
         # General
         auto-update = "check";
-        auto-update-channel = "tip";
+        auto-update-channel = "stable";
         clipboard-paste-protection = false;
         clipboard-trim-trailing-spaces = true;
-        command = "${pkgs.fish}/bin/fish --interactive --login";
+        command = "${pkgs.zsh}/bin/zsh";
         confirm-close-surface = false;
         copy-on-select = "clipboard";
         cursor-style = "block";
@@ -202,10 +142,6 @@ in
         init.defaultBranch = "main";
         pull.rebase = true;
         push.autoSetupRemote = true;
-        user = {
-          email = "me@denniseum.com";
-          name = "dseum";
-        };
       };
     };
     neovim = {
@@ -248,42 +184,8 @@ in
         pkgs.zls
       ];
     };
-    opencode = {
-      enable = true;
-      context = ./config/agents/AGENTS.md;
-      skills = {
-        review-abstractions = ./config/agents/skills/review-abstractions;
-        review-comments = ./config/agents/skills/review-comments;
-        review-workflows = ./config/agents/skills/review-workflows;
-      };
-      settings = {
-        autoupdate = false;
-        permission = "allow";
-        share = "disabled";
-      };
-      tui = {
-        plugin = [ "${config.xdg.configHome}/opencode/tui-plugins/metrics.tsx" ];
-      };
-    };
-    pi-coding-agent = {
-      enable = true;
-      context = ./config/agents/AGENTS.md;
-      settings = {
-        defaultProvider = "kimi-k3";
-        defaultModel = "moonshotai/Kimi-K3";
-        defaultThinkingLevel = "max";
-        enableInstallTelemetry = false;
-        theme = "tokyo-min";
-        quietStartup = true;
-        collapseChangelog = true;
-        outputPad = 0;
-        skills = [
-          ./config/agents/skills/review-abstractions
-          ./config/agents/skills/review-comments
-          ./config/agents/skills/review-workflows
-        ];
-      };
-    };
+    opencode.enable = true;
+    pi-coding-agent.enable = true;
     tmux = {
       enable = true;
       baseIndex = 1;
@@ -341,7 +243,7 @@ in
       historyLimit = 50000;
       keyMode = "vi";
       mouse = true;
-      shell = "${pkgs.fish}/bin/fish";
+      shell = "${pkgs.zsh}/bin/zsh";
       terminal = "tmux-256color";
     };
     vscode = {
@@ -406,9 +308,6 @@ in
       source = config.lib.file.mkOutOfStoreSymlink (targetDir + "/module/shared/config/nvim");
       recursive = true;
     };
-    "opencode/tui-plugins/metrics.tsx".source = config.lib.file.mkOutOfStoreSymlink (
-      targetDir + "/module/shared/config/opencode/tui-plugins/metrics.tsx"
-    );
     "vim" = {
       source = config.lib.file.mkOutOfStoreSymlink (targetDir + "/module/shared/config/vim");
       recursive = true;
