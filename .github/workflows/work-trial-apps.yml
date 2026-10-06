@@ -17,7 +17,7 @@ jobs:
   macos:
     name: macOS Applications and CLIs
     runs-on: macos-15
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24
@@ -46,6 +46,8 @@ jobs:
           nix build --no-write-lock-file .#darwinConfigurations.aarch64-darwin.config.home-manager.users.sable.programs.codex.package --out-link "$RUNNER_TEMP/codex"
           "$RUNNER_TEMP/claude-code/bin/claude" --version
           "$RUNNER_TEMP/codex/bin/codex" --version
+      - name: Build the complete Darwin workstation configuration
+        run: nix build --no-write-lock-file --no-link .#darwinConfigurations.aarch64-darwin.system
       - name: Confirm the lockfile was preserved
         run: git diff --exit-code -- flake.lock
 
