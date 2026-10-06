@@ -27,10 +27,14 @@ in
       "livekit-cli"
     ];
     casks = [
+      "chatgpt" # Codex desktop is now part of the ChatGPT app.
+      "claude"
       "devin-desktop"
       "google-chrome"
       "ghostty"
       "orbstack"
+      "wispr-flow"
+      "zoom"
     ];
     onActivation = {
       autoUpdate = true;
