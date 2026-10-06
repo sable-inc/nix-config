@@ -3,7 +3,7 @@ name: Work Trial Applications
 on:
   pull_request:
   push:
-    branches: [main, codex/eng-386-work-trial-apps]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -66,8 +66,11 @@ jobs:
           EOF
       - name: Evaluate both architectures and their app coverage
         run: |
+          nix eval --no-write-lock-file path:.#nixosConfigurations.x86_64-linux.config.system.build.toplevel.drvPath
+          # The existing shared Slack package prevents a full aarch64-linux
+          # workstation evaluation. Inspect package selection there without
+          # forcing unsupported, unrelated package outputs.
           for system in x86_64-linux aarch64-linux; do
-            nix eval --no-write-lock-file "path:.#nixosConfigurations.$system.config.system.build.toplevel.drvPath"
             nix eval --no-write-lock-file --json "path:.#nixosConfigurations.$system.config.environment.systemPackages" --apply 'packages: map (p: p.pname or p.name) packages' > "$RUNNER_TEMP/$system-packages.json"
             test "$(nix eval --no-write-lock-file "path:.#nixosConfigurations.$system.config.home-manager.users.sable.programs.claude-code.enable")" = true
             test "$(nix eval --no-write-lock-file "path:.#nixosConfigurations.$system.config.home-manager.users.sable.programs.codex.enable")" = true
