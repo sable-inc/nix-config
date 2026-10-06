@@ -27,13 +27,15 @@ jobs:
           nix eval --no-write-lock-file .#darwinConfigurations.aarch64-darwin.system.drvPath
           nix eval --no-write-lock-file --raw .#darwinConfigurations.aarch64-darwin.config.homebrew.brewfile > "$RUNNER_TEMP/Brewfile"
           for cask in chatgpt claude wispr-flow zoom; do
-            grep -Fx "cask \"$cask\"" "$RUNNER_TEMP/Brewfile"
+            grep -E "^cask \"$cask\"(,|$)" "$RUNNER_TEMP/Brewfile"
           done
+          grep -E '^cask "(chatgpt|claude|wispr-flow|zoom)"(,|$)' "$RUNNER_TEMP/Brewfile" > "$RUNNER_TEMP/WorkTrialBrewfile"
       - name: Install and verify the work trial desktop apps
         env:
           HOMEBREW_NO_AUTO_UPDATE: "1"
         run: |
-          brew install --cask chatgpt claude wispr-flow zoom
+          brew bundle install --file="$RUNNER_TEMP/WorkTrialBrewfile"
+          brew bundle check --file="$RUNNER_TEMP/WorkTrialBrewfile"
           brew list --cask chatgpt claude wispr-flow zoom
           for app in 'ChatGPT' 'Claude' 'Wispr Flow' 'zoom.us'; do
             test -d "/Applications/$app.app"
