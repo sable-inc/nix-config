@@ -116,33 +116,6 @@ On NixOS, keep machine identity and hardware-dependent settings there, including
 
 Set `system.stateVersion` to the NixOS release used for that machine's first installation and do not update it during normal upgrades. `hardware-configuration.nix` remains generated hardware discovery; do not put hand-written machine policy in it.
 
-## Work Trial Applications
-
-The macOS base installs Zoom, Wispr Flow, Claude Desktop, and Codex desktop through Homebrew. Codex desktop is now included in the ChatGPT app, so the base uses the `chatgpt` cask rather than the discontinued `codex-app` cask. See the [official Codex desktop migration announcement](https://learn.chatgpt.com/docs/changelog#codex-joins-the-chatgpt-desktop-app-26707).
-
-Claude Code and Codex CLI are already enabled through Home Manager on both macOS and NixOS. The desktop apps do not replace these terminal tools.
-
-| Application | macOS (Apple Silicon) | NixOS (x86_64) | NixOS (aarch64) |
-| --- | --- | --- | --- |
-| Zoom | Homebrew `zoom` | Nix `zoom-us`, with GNOME portal support | Not installed; the pinned package does not support this platform |
-| Wispr Flow | Homebrew `wispr-flow` | Not installed | Not installed |
-| Claude Desktop | Homebrew `claude` | Not installed | Not installed |
-| Codex desktop | Homebrew `chatgpt` | Not installed | Not installed |
-| Claude Code | Home Manager | Home Manager | Home Manager |
-| Codex CLI | Home Manager | Home Manager | Home Manager |
-
-After `build-switch` on macOS, verify the desktop packages and terminal tools:
-
-```sh
-brew list --cask chatgpt claude wispr-flow zoom
-claude --version
-codex --version
-```
-
-On x86_64 NixOS, also verify Zoom with `command -v zoom`.
-
-Installation does not sign users into the apps. Complete sign-in and grant microphone, camera, accessibility, and screen-sharing permissions as needed during onboarding.
-
 ## Agent Configuration
 
 Nix installs Claude Code, Codex, OpenCode, and Pi but does not manage their instructions, skills, settings, plugins, or other configuration. Configure them normally in `~/.claude`, `~/.codex`, `~/.config/opencode`, and `~/.pi/agent`; rebuilds leave those directories under local, imperative control.

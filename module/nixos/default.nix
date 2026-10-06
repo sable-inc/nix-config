@@ -32,12 +32,9 @@ in
       "console=tty0"
     ];
   };
-  environment.systemPackages =
-    sharedSystemPackages
-    ++ [ pkgs.google-chrome ]
-    ++ lib.optionals pkgs.stdenv.hostPlatform.isx86_64 [
-      (pkgs.zoom-us.override { gnomeXdgDesktopPortalSupport = true; })
-    ];
+  environment.systemPackages = sharedSystemPackages ++ [
+    pkgs.google-chrome
+  ];
   networking = {
     hostName = "nixos";
     nameservers = [
