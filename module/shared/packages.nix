@@ -8,6 +8,7 @@
   pkgs.cmake-format
   pkgs.code-cursor
   pkgs.curlFull
+  pkgs.doppler
   pkgs.fd
   pkgs.gh
   pkgs.gnumake
