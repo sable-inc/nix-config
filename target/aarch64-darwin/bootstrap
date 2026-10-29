@@ -1,0 +1,120 @@
+#!/bin/bash
+# Unattended first run on a fresh Mac, run as root (an Iru custom script, or sudo).
+# Each step checks its own end state first, so a rerun after a failure resumes.
+set -euo pipefail
+
+profile="trial"
+host_name=""
+ref="main"
+user="sable"
+nix_bin="/nix/var/nix/profiles/default/bin"
+sudoers_file="/etc/sudoers.d/zz-sable-bootstrap"
+log_file="/var/log/sable-bootstrap.log"
+
+log() { printf '%s sable-bootstrap: %s\n' "$(date -u +%FT%TZ)" "$*"; }
+die() { log "FAIL: $*"; exit 1; }
+
+while [ "$#" -gt 0 ]; do
+  [ "$#" -ge 2 ] || die "missing value for $1"
+  case "$1" in
+    --profile) profile="$2" ;;
+    --hostname) host_name="$2" ;;
+    --ref) ref="$2" ;;
+    --user) [ "$2" = "$user" ] || die "--user is fixed to $user (the flake builds for it)" ;;
+    *) die "unknown argument: $1" ;;
+  esac
+  shift 2
+done
+
+exec > >(tee -a "$log_file") 2>&1
+
+[ "$(id -u)" -eq 0 ] || die "run as root"
+rm -f "$sudoers_file"
+[ "$(uname -m)" = "arm64" ] || die "Apple silicon only"
+id "$user" >/dev/null 2>&1 || die "user $user does not exist; create it in Setup Assistant or with Iru first"
+if [ -z "$host_name" ]; then
+  host_name="$(scutil --get LocalHostName 2>/dev/null || true)"
+fi
+case "$host_name" in
+  sable-*) ;;
+  *) die "hostname must start with sable- (pass --hostname or set the device name in Iru), got '$host_name'" ;;
+esac
+
+# The Nix installer, init and build-switch call sudo as $user; this drop-in is removed on exit.
+trap 'rm -f "$sudoers_file"' EXIT
+trap 'exit 1' HUP INT TERM
+# Sudo enforces expiry even after SIGKILL or reboot, when cleanup traps cannot run.
+sudo_expires_at="$(date -u -v+2H +%Y%m%d%H%M%SZ)"
+printf '%s ALL=(ALL) NOTAFTER=%s NOPASSWD: ALL\n' "$user" "$sudo_expires_at" > "$sudoers_file"
+chmod 0440 "$sudoers_file"
+visudo -cf "$sudoers_file" >/dev/null || die "bad sudoers drop-in"
+
+as_user() { sudo -H -u "$user" env PATH="$nix_bin:/usr/bin:/bin:/usr/sbin:/sbin" "$@"; }
+cd /tmp
+
+log "profile=$profile hostname=$host_name ref=$ref user=$user"
+
+if xcode-select -p >/dev/null 2>&1; then
+  log "command line tools: present"
+else
+  log "command line tools: installing"
+  marker="/tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress"
+  touch "$marker"
+  label="$(softwareupdate -l 2>/dev/null | sed -n 's/^\* Label: \(Command Line Tools for Xcode.*\)$/\1/p' | sort -V | tail -1)"
+  [ -n "$label" ] || die "no Command Line Tools update offered"
+  softwareupdate -i "$label" --verbose
+  rm -f "$marker"
+  xcode-select -p >/dev/null 2>&1 || die "command line tools did not install"
+fi
+
+nix_works() { as_user nix --extra-experimental-features nix-command store info >/dev/null 2>&1; }
+daemon_plist=/Library/LaunchDaemons/org.nixos.nix-daemon.plist
+
+if [ -x "$nix_bin/nix" ]; then
+  if ! nix_works && [ -f "$daemon_plist" ]; then
+    log "nix: daemon not answering, loading it"
+    launchctl bootstrap system "$daemon_plist" 2>/dev/null || launchctl kickstart -k system/org.nixos.nix-daemon || true
+    for _ in 1 2 3 4 5 6 7 8 9 10; do nix_works && break; sleep 3; done
+  fi
+  nix_works || die "nix is half installed (binary present, store not working); erase the Mac from Iru and enroll again"
+  log "nix: present"
+else
+  log "nix: installing"
+  installer="$(as_user mktemp -d)/install"
+  as_user curl --proto '=https' --tlsv1.2 -fsSL -o "$installer" https://nixos.org/nix/install
+  as_user sh "$installer" --daemon --yes
+  nix_works || die "nix did not install"
+fi
+
+local_nix=/etc/nix-darwin/local.nix
+if [ -f "$local_nix" ]; then
+  if ! grep -Eq "^[[:space:]]*sable\.profile = \"$profile\";" "$local_nix" ||
+    ! grep -Eq "^[[:space:]]*networking\.hostName = \"$host_name\";" "$local_nix"; then
+    die "$local_nix exists with a different profile or hostname; fix it by hand or erase the Mac"
+  fi
+  log "nix-config: present with profile $profile"
+else
+  log "nix-config: running init"
+  flake="github:sable-inc/nix-config"
+  ref_args=()
+  if [ "$ref" != "main" ]; then
+    flake="$flake/$ref"
+    ref_args=(--ref "$ref")
+  fi
+  as_user nix --extra-experimental-features 'nix-command flakes' run --refresh "$flake#init" -- \
+    --profile "$profile" --hostname "$host_name" ${ref_args[@]+"${ref_args[@]}"}
+fi
+
+# home-manager starts launch agents in the user's GUI session, which exists only while they are logged in.
+console_user="$(stat -f %Su /dev/console)"
+if [ "$console_user" != "$user" ]; then
+  log "waiting for $user to log in (logged in: $console_user); rerun after login"
+  exit 1
+fi
+
+log "build-switch: running"
+cd /etc/nix-darwin
+as_user nix --extra-experimental-features 'nix-command flakes' run path:/etc/nix-darwin#build-switch
+[ -L /run/current-system ] || die "no system generation after build-switch"
+
+log "done; sign-ins (GitHub, Google, Claude) are next, by hand"
