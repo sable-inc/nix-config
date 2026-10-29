@@ -1,6 +1,7 @@
 {
   self,
   config,
+  lib,
   pkgs,
   user,
   ...
@@ -12,6 +13,7 @@ in
   imports = [
     ../shared
     ./home-manager.nix
+    ./profile.nix
   ];
   environment = {
     shells = [
@@ -26,7 +28,7 @@ in
     brews = [
       "livekit-cli"
     ];
-    casks = [
+    casks = lib.subtractLists (lib.optional (config.sable.profile == "trial") "devin-desktop") [
       "chatgpt" # Codex desktop is now part of the ChatGPT app.
       "claude"
       "devin-desktop"
@@ -53,7 +55,7 @@ in
       "2606:4700:4700::1111"
       "2606:4700:4700::1001"
     ];
-    hostName = "darwin";
+    hostName = lib.mkDefault "darwin";
   };
   nix = {
     gc.interval = {

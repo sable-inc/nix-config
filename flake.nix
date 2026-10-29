@@ -72,6 +72,7 @@
         {
           targetDir,
           expectedUser ? null,
+          profiles ? false,
         }:
         let
           app = pkgs.writeShellApplication {
@@ -93,6 +94,55 @@
               tmp_dir="$(mktemp -d)"
               user_name="$(id -un)"
               trap 'rm -rf "$tmp_dir"' EXIT
+              profile=""
+              host_name=""
+              ref=""
+
+              while [ "$#" -gt 0 ]; do
+                if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+                  println "$red" "missing value for $1"
+                  exit 1
+                fi
+                case "$1" in
+                  --profile) profile="$2" ;;
+                  --hostname) host_name="$2" ;;
+                  --ref) ref="$2" ;;
+                  *)
+                    println "$red" "unknown argument: $1"
+                    exit 1
+                    ;;
+                esac
+                shift 2
+              done
+              profiles="${if profiles then "1" else ""}"
+              if [ -n "$profile$host_name" ] && [ -z "$profiles" ]; then
+                println "$red" "--profile and --hostname are only supported on macOS"
+                exit 1
+              fi
+              case "$profile" in
+                ""|default|onboard|trial) ;;
+                *)
+                  println "$red" "profile must be default, onboard or trial, got $profile"
+                  exit 1
+                  ;;
+              esac
+              case "$host_name" in
+                *[!A-Za-z0-9-]*)
+                  println "$red" "hostname may only use letters, digits and -, got $host_name"
+                  exit 1
+                  ;;
+              esac
+              case "$ref" in
+                -*|*[!A-Za-z0-9._/-]*)
+                  println "$red" "ref may only use letters, digits, ., _, / and -, got $ref"
+                  exit 1
+                  ;;
+              esac
+
+              if [ -n "$profile$host_name" ] && [ -f "$target_dir/local.nix" ]; then
+                println "$red" "$target_dir/local.nix already exists; edit it by hand instead of passing --profile or --hostname"
+                exit 1
+              fi
 
               ${nixpkgs.lib.optionalString (expectedUser != null) ''
                 if [ "$user_name" != "${expectedUser}" ]; then
@@ -103,7 +153,7 @@
 
               println "$yellow" "injecting..."
 
-              git clone "https://github.com/sable-inc/nix-config.git" "$tmp_dir/nix-config" &>/dev/null
+              git clone ''${ref:+--branch "$ref"} "https://github.com/sable-inc/nix-config.git" "$tmp_dir/nix-config" &>/dev/null
 
               if [ -e "$target_dir" ] || [ -L "$target_dir" ]; then
                 backup_dir="''${target_dir}.backup"
@@ -121,6 +171,21 @@
               sudo mv "$tmp_dir/nix-config" "$target_dir"
               sudo chown -R "$user_name" "$target_dir"
               git -C "$target_dir" config core.hooksPath .githooks
+
+              if [ -n "$profile$host_name" ]; then
+                {
+                  printf '{ ... }:\n{\n'
+                  if [ -n "$profile" ]; then printf '  sable.profile = "%s";\n' "$profile"; fi
+                  if [ -n "$host_name" ]; then printf '  networking.hostName = "%s";\n' "$host_name"; fi
+                  printf '}\n'
+                } > "$target_dir/local.nix.tmp"
+                mv "$target_dir/local.nix.tmp" "$target_dir/local.nix"
+                println "$green" "wrote $target_dir/local.nix"
+              elif [ -n "''${backup_dir:-}" ] && [ -f "$backup_dir/local.nix" ]; then
+                sudo cp "$backup_dir/local.nix" "$target_dir/local.nix"
+                sudo chown "$user_name" "$target_dir/local.nix"
+                println "$green" "kept local.nix from $backup_dir"
+              fi
 
               println "$green" "injected into $target_dir"
             '';
@@ -172,6 +237,7 @@
           "init" = mkInitApp pkgs {
             targetDir = "/etc/nix-darwin";
             expectedUser = user;
+            profiles = true;
           };
           "update" = mkApp pkgs {
             name = "update";

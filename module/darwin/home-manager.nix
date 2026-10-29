@@ -1,4 +1,5 @@
 {
+  config,
   user,
   targetDir,
   ...
@@ -18,7 +19,10 @@
         imports = [
           ../shared/home-manager.nix
         ];
-        home.packages = import ./packages.nix { inherit pkgs; };
+        home.packages = import ./packages.nix {
+          inherit pkgs;
+          profile = config.sable.profile;
+        };
         nix.gc = {
           automatic = true;
           dates = "weekly";
