@@ -1,0 +1,87 @@
+# sable-doctor: PASS/FAIL for every piece a Sable trial or onboard laptop needs.
+# Usage: sable-doctor [--trial-dir ~/deployments/trials/<agent>-<first>]
+# Exit code = number of FAILs. Never prints secret values.
+pass=0; fail=0; warn=0
+ok()   { printf '\033[1;32mPASS\033[0m  %s\n' "$1"; pass=$((pass+1)); }
+bad()  { printf '\033[1;31mFAIL\033[0m  %s\n      fix: %s\n' "$1" "$2"; fail=$((fail+1)); }
+note() { printf '\033[1;33mWARN\033[0m  %s\n' "$1"; warn=$((warn+1)); }
+have() { command -v "$1" >/dev/null 2>&1; }
+check() { # check <label> <fix> <command...>
+  label=$1; fix=$2; shift 2
+  if "$@" >/dev/null 2>&1; then ok "$label"; else bad "$label" "$fix"; fi
+}
+
+trial_dir=""
+[ "${1:-}" = "--trial-dir" ] && trial_dir="${2:-}"
+profile_file=/etc/nix-darwin/local.nix
+profile=$(grep -o 'sable.profile *= *"[a-z]*"' "$profile_file" 2>/dev/null | grep -o '"[a-z]*"' | tr -d '"')
+echo "sable-doctor  profile=${profile:-default}  host=$(scutil --get LocalHostName 2>/dev/null || hostname)"
+echo
+
+echo "== machine"
+check "arm64" "Apple Silicon Mac required" test "$(uname -m)" = arm64
+check "user is sable" "recreate the admin account with short name 'sable'" test "$(id -un)" = sable
+check "nix-darwin switched" "cd /etc/nix-darwin && nix run path:.#build-switch" test -L /run/current-system
+check "Homebrew" "rerun build-switch" brew --version
+
+echo "== apps"
+for app in "Google Chrome" Claude ChatGPT zoom.us "Wispr Flow" Ghostty OrbStack Notion; do
+  check "$app.app" "rerun build-switch" test -d "/Applications/$app.app"
+done
+[ "$profile" = onboard ] && check "Linear.app" "rerun build-switch" test -d /Applications/Linear.app
+for app in Slack Cursor; do
+  if [ -d "/Applications/Nix Apps/$app.app" ] || [ -d "$HOME/Applications/Home Manager Apps/$app.app" ]; then ok "$app.app"; else bad "$app.app" "rerun build-switch"; fi
+done
+
+echo "== CLIs"
+for c in git gh node pnpm uv doppler claude codex lk; do
+  check "$c" "rerun build-switch" have "$c"
+done
+
+echo "== GitHub + npm"
+check "gh auth status" "gh auth login --web" gh auth status
+check "gh token can read packages" "gh auth refresh -s read:packages" sh -c "gh auth status 2>&1 | grep -q read:packages"
+check "NPM_TOKEN set (value not shown)" "open a new terminal; the profile exports it from gh auth token" test -n "${NPM_TOKEN:-}"
+check "@sable-inc registry in ~/.npmrc" "npm config set @sable-inc:registry https://npm.pkg.github.com" grep -q '@sable-inc:registry' "$HOME/.npmrc"
+# shellcheck disable=SC2016 # matches the literal ${NPM_TOKEN} reference npm expands at run time
+check "npm auth reads NPM_TOKEN" "npm config set '//npm.pkg.github.com/:_authToken' '\${NPM_TOKEN}'" grep -q 'npm.pkg.github.com/:_authToken=${NPM_TOKEN}' "$HOME/.npmrc"
+
+echo "== Sable tools"
+if have sable; then
+  ok "sable CLI installed ($(sable --version 2>/dev/null | head -1))"
+  check "sable doctor" "sable update && sable doctor" sable doctor
+  if sable --json whoami 2>/dev/null | grep -Eqi '"orgName": *"[^"]*trial'; then ok "sable whoami: Trials org"
+  elif [ "$profile" = trial ]; then bad "sable whoami: Trials org" "sable login, then ask an engineer for a Trials org invite"
+  else note "sable whoami does not mention Trials (fine outside a trial)"; fi
+else bad "sable CLI" "bun add -g @sable-inc/toolbelt"; fi
+if have sablebrowse; then
+  ok "SableBrowse installed"
+  check "sablebrowse doctor" "sablebrowse setup" sablebrowse doctor
+else bad "SableBrowse" "npm install -g @sable-inc/sablebrowse && sablebrowse setup"; fi
+if ls -d "$HOME"/Library/Application\ Support/Google/Chrome/*/Extensions/ildldnmbjlkbomodicckikcenamaabfj >/dev/null 2>&1; then ok "SableBrowse Chrome extension"; else bad "SableBrowse Chrome extension" "install ildldnmbjlkbomodicckikcenamaabfj from the Chrome Web Store"; fi
+
+if [ -n "$trial_dir" ] || [ "$profile" = trial ]; then
+  echo "== trial repo"
+  repo="$HOME/deployments"
+  check "deployments repo cloned" "gh repo clone sable-inc/deployments ~/deployments" test -d "$repo/.git"
+  br=$(git -C "$repo" branch --show-current 2>/dev/null)
+  case "$br" in trial/*|trials/*) ok "on trial branch ($br)";; *) bad "on trial branch (now: ${br:-none})" "git -C ~/deployments checkout <trial branch>";; esac
+  if [ -n "$trial_dir" ]; then
+    check "trial folder exists" "check the agent path in TRIAL_PROMPT.md" test -d "$trial_dir"
+    if have sable && [ -d "$trial_dir" ]; then
+      check "sable build" "cd $trial_dir && sable build" sh -c "cd '$trial_dir' && sable build"
+      check "sable lint" "cd $trial_dir && sable lint" sh -c "cd '$trial_dir' && sable lint"
+    fi
+  fi
+  if [ -f "$HOME/TRIAL_PROMPT.md" ]; then
+    if grep -Eq 'agt_X{4,}|agt_\.\.\.|<[A-Z_]+>|TODO' "$HOME/TRIAL_PROMPT.md"; then bad "TRIAL_PROMPT.md has no placeholders" "fill in the real agent path and agent id"
+    else ok "TRIAL_PROMPT.md filled in"; fi
+  else bad "TRIAL_PROMPT.md" "write ~/TRIAL_PROMPT.md with the real agent path and id"; fi
+fi
+
+echo "== privacy permissions (check by hand if unsure)"
+note "mic / camera / screen recording for Chrome, Zoom, Wispr Flow: System Settings > Privacy & Security (cannot be read without MDM)"
+
+echo
+echo "summary: $pass PASS, $fail FAIL, $warn WARN"
+exit "$fail"

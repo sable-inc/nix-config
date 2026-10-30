@@ -19,6 +19,17 @@ nix --extra-experimental-features 'nix-command flakes' build "path:${FLAKE_DIR}#
 
 println "${YELLOW}" "switching..."
 
+# The Nix installer writes these; nix-darwin refuses to replace them on the first switch.
+for f in /etc/bashrc /etc/zshrc; do
+    if [ -f "$f" ] && [ ! -L "$f" ]; then
+        backup="$f.before-nix-darwin"
+        if [ -e "$backup" ]; then
+            backup="$backup.$(date +%Y%m%d-%H%M%S)"
+        fi
+        sudo mv "$f" "$backup"
+    fi
+done
+
 sudo ./result/sw/bin/darwin-rebuild switch --flake "path:${FLAKE_DIR}#${TARGET}" "$@"
 
 unlink ./result
