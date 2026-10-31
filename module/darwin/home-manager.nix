@@ -6,6 +6,8 @@
 }:
 {
   home-manager = {
+    backupFileExtension = "before-nix-config";
+    overwriteBackup = true;
     extraSpecialArgs = {
       inherit targetDir;
     };

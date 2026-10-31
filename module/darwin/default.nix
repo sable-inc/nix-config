@@ -66,6 +66,7 @@ in
   nix-homebrew = {
     inherit user;
     enable = true;
+    autoMigrate = true;
   };
   power.sleep = {
     computer = 20;

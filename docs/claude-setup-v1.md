@@ -61,8 +61,6 @@ with that privacy permission. Terminal.app has it; Ghostty and Orca don't by def
      github:sable-inc/nix-config#init -- --profile trial --hostname sable-trial1
    ```
    **Fresh or erased Macs only.** The next step deletes any app nix-config doesn't list.
-   Until the trial-profile PR merges, install from the branch instead: replace
-   `nix-config#init` with `nix-config/trial-profile#init` and add `--ref trial-profile`
 6. Build and switch (asks for the admin password; wait for "switched"):
    ```sh
    cd /etc/nix-darwin && nix --extra-experimental-features 'nix-command flakes' run path:.#build-switch

@@ -20,8 +20,8 @@ Create a blueprint named **Sable Trial** and add:
 | Custom Script | run once per device; paste the file | `mdm/iru-bootstrap.sh` |
 | Custom Script | run daily; paste the file | `mdm/iru-doctor.sh` |
 
-`iru-bootstrap.sh` downloads `target/aarch64-darwin/bootstrap` from `main`. Until the profile
-and bootstrap changes merge, set `ref` in the pasted script to the branch under test.
+`iru-bootstrap.sh` downloads `target/aarch64-darwin/bootstrap` from `main`. To test a branch,
+set `ref` in the pasted script to it, and set it back to `main` afterwards.
 
 Or by API: an Iru token with these write permissions lets a script create the same items.
 Grant only what is listed, and add the matching read permissions:
@@ -58,7 +58,7 @@ Not in Apple Business:
 
 Then, either way:
 
-3. Wait until the bootstrap script passes on the device page (about 20 minutes on a fresh Mac)
+3. Wait until the bootstrap script passes on the device page (45 to 90 minutes on a fresh Mac; the first run downloads and builds everything)
 4. Put `~/trial-inputs.env` and the approved `~/trial-prompt-template.md` on the Mac as
    described in `docs/claude-setup-v1.md`, then continue at step 7 (GitHub sign-in)
 
