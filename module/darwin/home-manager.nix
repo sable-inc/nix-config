@@ -6,6 +6,7 @@
 }:
 {
   home-manager = {
+    backupFileExtension = "before-nix-config";
     extraSpecialArgs = {
       inherit targetDir;
     };
