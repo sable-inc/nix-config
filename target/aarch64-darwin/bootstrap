@@ -32,8 +32,16 @@ exec > >(tee -a "$log_file") 2>&1
 rm -f "$sudoers_file"
 [ "$(uname -m)" = "arm64" ] || die "Apple silicon only"
 id "$user" >/dev/null 2>&1 || die "user $user does not exist; create it in Setup Assistant or with Iru first"
+# Iru's Device Name item may set HostName before LocalHostName, so take the first sable- name.
 if [ -z "$host_name" ]; then
-  host_name="$(scutil --get LocalHostName 2>/dev/null || true)"
+  for key in LocalHostName HostName; do
+    name="$(scutil --get "$key" 2>/dev/null || true)"
+    name="${name%%.*}"
+    case "$name" in
+      sable-*) host_name="$name"; break ;;
+    esac
+    host_name="${host_name:-$name}"
+  done
 fi
 case "$host_name" in
   sable-*) ;;
