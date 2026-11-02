@@ -87,3 +87,9 @@ Macs from Apple or a linked reseller appear in Apple Business on their own and g
 (the default for Macs). For a Mac bought elsewhere: erase it, then at Setup Assistant add it
 with Apple Configurator on an iPhone. For 30 days after that, the person at the Mac can still
 remove it from management.
+
+Apple Business does not send Configurator-added Macs to Iru. It assigns them to "Devices Added
+by Apple Configurator 2", and they skip Remote Management at Setup Assistant. In Apple Business,
+open each one and change its device management service to Iru, and check that the Mac shows
+in Iru's Automated Device Enrollment list. Do this before continuing Setup Assistant. If the
+Mac gets past Setup Assistant without the Remote Management screen, erase it and start again.
