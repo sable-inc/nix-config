@@ -100,9 +100,9 @@ when a step needs one, tell me exactly what to do and wait.
    npm config set @sable-inc:registry https://npm.pkg.github.com
    npm config set '//npm.pkg.github.com/:_authToken' '${NPM_TOKEN}'
 3. sable CLI: `bun add -g @sable-inc/toolbelt`, then `sable --version` and `sable update`.
-4. `sable login`: tell me to finish the sign-in in the browser as $TRIAL_EMAIL. Then
-   `sable switch` to the Trials org and confirm `sable whoami` shows it. If the org is
-   missing, stop: an engineer must invite $TRIAL_EMAIL to Trials.
+4. `sable login --no-browser`: give me the URL it prints and tell me to open it and sign
+   in as $TRIAL_EMAIL. Then `sable switch` to the Trials org and confirm `sable whoami`
+   shows it. If the org is missing, stop: an engineer must invite $TRIAL_EMAIL to Trials.
 5. SableBrowse: `npm install -g @sable-inc/sablebrowse && sablebrowse setup`.
 6. Repo: `gh repo clone sable-inc/deployments ~/deployments`, then
    `git -C ~/deployments checkout $TRIAL_BRANCH`. Confirm ~/deployments/$AGENT_PATH exists
@@ -146,9 +146,9 @@ browser sign-ins: when a step needs one, tell me exactly what to do and wait.
    npm config set @sable-inc:registry https://npm.pkg.github.com
    npm config set '//npm.pkg.github.com/:_authToken' '${NPM_TOKEN}'
 4. sable CLI: `bun add -g @sable-inc/toolbelt`, then `sable --version` and `sable update`.
-   `sable login`: tell me to finish the sign-in in the browser as EMAIL. Then `sable switch`
-   to the main Sable org (not Trials) and confirm `sable whoami`. If the org is missing,
-   note it in the log and go on.
+   `sable login --no-browser`: give me the URL it prints and tell me to open it and sign
+   in as EMAIL. Then `sable switch` to the main Sable org (not Trials) and confirm
+   `sable whoami`. If the org is missing, note it in the log and go on.
 5. SableBrowse: `npm install -g @sable-inc/sablebrowse && sablebrowse setup`.
 6. Chrome: tell me to open Chrome, sign in as EMAIL, and click "Add to Chrome" on
    https://chromewebstore.google.com/detail/ildldnmbjlkbomodicckikcenamaabfj. Wait for me.
