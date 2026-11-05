@@ -128,8 +128,8 @@ profile) are already installed. Log each step with start and end times in ~/setu
 Never print, echo, log or commit a token or password. You cannot type passwords or complete
 browser sign-ins: when a step needs one, tell me exactly what to do and wait.
 
-0. Ask me for the hire's full name, their @sable.ai email, and their GitHub username (or
-   "not yet"). Use those below as NAME, EMAIL and GITHUB_USER.
+0. Ask me for the hire's @sable.ai email and their GitHub username (or "not yet"). Use
+   those below as EMAIL and GITHUB_USER.
 1. Check: `id -un` is sable, `scutil --get LocalHostName` starts with sable-, and
    /etc/nix-darwin/local.nix sets the profile to "onboard". If any check fails, stop.
 2. GitHub (skip to step 6 if GITHUB_USER is "not yet"): tell me to type
@@ -137,8 +137,9 @@ browser sign-ins: when a step needs one, tell me exactly what to do and wait.
    GITHUB_USER in the browser. Then set the credential helper yourself (not gh auth setup-git):
    git config --file ~/.gitconfig credential.https://github.com.helper ""
    git config --file ~/.gitconfig --add credential.https://github.com.helper '!'"$(command -v gh) auth git-credential"
-   Check `gh auth status` shows GITHUB_USER with read:packages. Open a new login shell and
-   check `echo ${NPM_TOKEN:+set}` prints "set".
+   Check `gh auth status` shows GITHUB_USER with read:packages. Your shell started before
+   this sign-in, so it has no NPM_TOKEN: begin every command in steps 3-5 with
+   `export NPM_TOKEN="$(gh auth token)";` and never print it.
 3. npm registry for @sable-inc (the token stays in the environment, not in the file):
    npm config set @sable-inc:registry https://npm.pkg.github.com
    npm config set '//npm.pkg.github.com/:_authToken' '${NPM_TOKEN}'
@@ -155,9 +156,10 @@ browser sign-ins: when a step needs one, tell me exactly what to do and wait.
    If one has no invite yet, note it in the log and go on.
 8. Tell me to open System Settings > Privacy & Security and allow Microphone, Camera and
    Screen & System Audio Recording for Chrome, Zoom and Wispr Flow. Wait for me.
-9. Run `sable-doctor`. Fix every FAIL you can and rerun. End with the final sable-doctor
-   output, ~/setup-log.md, and a short list of what the hire still has to do on day one
-   (for example the GitHub steps if they were skipped).
+9. Run `sable-doctor`. Fix every FAIL you can and rerun. If you skipped the GitHub steps,
+   the GitHub, NPM_TOKEN, npm, sable and SableBrowse FAILs are expected: don't try to fix
+   them. End with the final sable-doctor output, ~/setup-log.md, and a short list of what
+   the hire still has to do on day one (steps 2-5 if they were skipped).
 ```
 
 ## After
