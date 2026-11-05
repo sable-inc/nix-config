@@ -150,7 +150,7 @@ browser sign-ins: when a step needs one, tell me exactly what to do and wait.
 6. Chrome: tell me to open Chrome, sign in as EMAIL, and click "Add to Chrome" on
    https://chromewebstore.google.com/detail/ildldnmbjlkbomodicckikcenamaabfj. Wait for me.
 7. Apps: one at a time, tell me to open each app and sign in as EMAIL (Google sign-in), and
-   wait for me after each: Slack, Zoom, Claude, ChatGPT, Linear, Notion, Wispr Flow, Cursor,
+   wait for me after each: Slack, Zoom, Granola, Claude, ChatGPT, Linear, Notion, Wispr Flow, Cursor,
    1Password (needs the hire's 1Password invite).
    If one has no invite yet, note it in the log and go on.
 8. Tell me to open System Settings > Privacy & Security and allow Microphone, Camera and

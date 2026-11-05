@@ -27,7 +27,7 @@ in
   config = lib.mkMerge [
     (lib.mkIf (profile != "default") {
       environment.systemPackages = [ sableDoctor ];
-      homebrew.casks = [ "notion" "1password" ];
+      homebrew.casks = [ "notion" "1password" "granola" ];
       home-manager.users.${user} = {
         # Nix's node lives in the read-only store, so npm and bun globals go under $HOME.
         home.sessionVariables.NPM_CONFIG_PREFIX = "$HOME/.npm-global";
@@ -49,6 +49,7 @@ in
         "/Applications/Nix Apps/Spotify.app"
         "/Applications/Nix Apps/Slack.app"
         "/Applications/zoom.us.app"
+        "/Applications/Granola.app"
         "/System/Applications/Notes.app"
         "/Applications/Claude.app"
         "/Applications/ChatGPT.app"
