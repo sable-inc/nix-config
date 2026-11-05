@@ -12,6 +12,7 @@ lib.mkIf (config.sable.profile != "trial") {
     if [ ! -d /Applications/Orca.app ]; then
       echo "installing Orca..." >&2
       orca_tmp="$(mktemp -d)"
+      mkdir -p "$orca_tmp/mnt"
       if /usr/bin/curl --proto '=https' --tlsv1.2 -fsSL -o "$orca_tmp/orca.dmg" \
           https://github.com/stablyai/orca/releases/latest/download/orca-macos-arm64.dmg \
         && /usr/bin/hdiutil attach -nobrowse -readonly -mountpoint "$orca_tmp/mnt" "$orca_tmp/orca.dmg" >/dev/null; then
