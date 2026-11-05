@@ -27,7 +27,7 @@ in
   config = lib.mkMerge [
     (lib.mkIf (profile != "default") {
       environment.systemPackages = [ sableDoctor ];
-      homebrew.casks = [ "notion" ];
+      homebrew.casks = [ "notion" "1password" "granola" ];
       home-manager.users.${user} = {
         # Nix's node lives in the read-only store, so npm and bun globals go under $HOME.
         home.sessionVariables.NPM_CONFIG_PREFIX = "$HOME/.npm-global";
@@ -43,6 +43,24 @@ in
     })
     (lib.mkIf (profile == "onboard") {
       homebrew.casks = [ "linear" ];
+      # New hires get the work apps in the dock, not only the default set.
+      system.defaults.dock.persistent-apps = lib.mkForce [
+        "/Applications/Google Chrome.app"
+        "/Applications/Nix Apps/Spotify.app"
+        "/Applications/Nix Apps/Slack.app"
+        "/Applications/zoom.us.app"
+        "/Applications/Granola.app"
+        "/System/Applications/Notes.app"
+        "/Applications/Claude.app"
+        "/Applications/ChatGPT.app"
+        "/Applications/Linear.app"
+        "/Applications/Notion.app"
+        "/Applications/Wispr Flow.app"
+        "/Applications/1Password.app"
+        "/System/Applications/Utilities/Terminal.app/"
+        "${config.users.users.${user}.home}/Applications/Home Manager Apps/Cursor.app"
+        "/System/Applications/System Settings.app"
+      ];
     })
     (lib.mkIf (profile == "trial") {
       # Trial laptops are wiped after every trial: no Devin seat, no Spotify in the dock.

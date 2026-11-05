@@ -23,6 +23,10 @@ Create a blueprint named **Sable Trial** and add:
 `iru-bootstrap.sh` downloads `target/aarch64-darwin/bootstrap` from `main`. To test a branch,
 set `ref` in the pasted script to it, and set it back to `main` afterwards.
 
+**Default Blueprint** and **Sable Trial** carry Sable's security settings (disk encryption,
+screen lock, OS updates); add the same to any new blueprint, such as **Sable Trial
+(non-technical)**. The details are kept privately. Iru escrows FileVault keys, so don't store them by hand.
+
 Or by API: an Iru token with these write permissions lets a script create the same items.
 Grant only what is listed, and add the matching read permissions:
 

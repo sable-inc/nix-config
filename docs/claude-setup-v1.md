@@ -5,9 +5,12 @@ For the office person setting up a Sable trial laptop. Covers:
 - **A. New trial laptop:** a brand-new Mac joins the trial pool
 - **B. Reset:** an existing trial laptop gets the next candidate. Erase it first (below), then
   follow A
-- **C. New-hire Mac:** follow hand steps 1-7 with `--profile onboard`, the person's own
-  hostname (`--hostname sable-<name>`) and their own Google and GitHub accounts, then run
-  `sable-doctor`. The Claude prompt is trial-only for now
+- **C. New-hire Mac:** follow hand steps 1-6 with `--profile onboard` and the person's own
+  hostname (`--hostname sable-<name>`). Then run `claude` in Terminal.app and paste the
+  new-hire prompt (below the trial prompt). It does not use the trial input files. The trial
+  prompt is for trial laptops only
+  The Mac goes on the Default Blueprint in Iru; don't store the FileVault key by hand, Iru
+  escrows it
 
 No secrets go in this file, in Slack, or in the repo. Passwords come from the vault. Time each
 step in the two-Mac checklist.
@@ -65,13 +68,21 @@ with that privacy permission. Terminal.app has it; Ghostty and Orca don't by def
    ```sh
    cd /etc/nix-darwin && nix --extra-experimental-features 'nix-command flakes' run path:.#build-switch
    ```
-7. Open a new Terminal window. Sign in to GitHub as the slot's GitHub account, in the browser:
+7. Open a new Terminal window. Sign in to GitHub as the slot's GitHub account, in the browser.
+   When asked "Authenticate Git with your GitHub credentials?", answer **No**.
+   Don't use `gh auth setup-git`: nix-config owns `~/.config/git/config`, so it fails with
+   "permission denied". The last two lines do the same in `~/.gitconfig` (the `'!'` quoting
+   stops zsh from expanding `!$`):
    ```sh
-   gh auth login --web --git-protocol https --scopes read:packages && gh auth setup-git
+   gh auth login --web --git-protocol https --scopes read:packages
+   git config --file ~/.gitconfig --replace-all credential.https://github.com.helper ""
+   git config --file ~/.gitconfig --add credential.https://github.com.helper '!'"$(command -v gh) auth git-credential"
    ```
-8. Run `claude`, sign in, and paste the prompt below
+8. In that same Terminal.app window, type `claude` and press Return. Sign in with the slot's
+   Google account, then paste the prompt below. Use the `claude` command in Terminal, not the
+   Claude desktop app or claude.ai: those run in the cloud and can't touch this Mac
 
-## The prompt (paste into `claude` as is; it reads `~/trial-inputs.env`)
+## The prompt (paste into `claude` in Terminal.app as is; it reads `~/trial-inputs.env`)
 
 ```
 You are finishing the setup of a Sable work-trial Mac. Nix and nix-config are already
@@ -104,6 +115,54 @@ when a step needs one, tell me exactly what to do and wait.
    Screen & System Audio Recording for Chrome, Zoom and Wispr Flow. Wait for me.
 10. Run `sable-doctor --trial-dir ~/deployments/$AGENT_PATH`. Fix every FAIL you can and
     rerun. End with the final sable-doctor output and ~/setup-log.md.
+```
+
+## The new-hire prompt (section C; paste into `claude` in Terminal.app as is)
+
+Have the hire's Google password ready, and their phone if Google asks for a second step.
+Their GitHub account is optional: without it, Claude skips the GitHub steps and lists them
+for the hire's first day.
+
+```
+You are finishing the setup of a new Sable employee's Mac. Nix and nix-config (onboard
+profile) are already installed. Log each step with start and end times in ~/setup-log.md.
+Never print, echo, log or commit a token or password. You cannot type passwords or complete
+browser sign-ins: when a step needs one, tell me exactly what to do and wait.
+
+0. Ask me for the hire's @sable.ai email and their GitHub username (or "not yet"). Use
+   those below as EMAIL and GITHUB_USER.
+1. Check: `id -un` is sable, `scutil --get LocalHostName` starts with sable-, and
+   /etc/nix-darwin/local.nix sets the profile to "onboard". If any check fails, stop.
+2. GitHub (skip to step 6 if GITHUB_USER is "not yet"): tell me to type
+   `! gh auth login --web --git-protocol https --scopes read:packages`.
+   Tell me to answer No to "Authenticate Git with your GitHub credentials?" and sign in as
+   GITHUB_USER in the browser. Then set the credential helper yourself (not gh auth setup-git):
+   git config --file ~/.gitconfig --replace-all credential.https://github.com.helper ""
+   git config --file ~/.gitconfig --add credential.https://github.com.helper '!'"$(command -v gh) auth git-credential"
+   Check `gh auth status` shows GITHUB_USER with read:packages. Your shell started before
+   this sign-in, so it has no NPM_TOKEN: begin every command in steps 3-5 with
+   `export NPM_TOKEN="$(gh auth token)";` and never print it.
+3. npm registry for @sable-inc (the token stays in the environment, not in the file):
+   npm config set @sable-inc:registry https://npm.pkg.github.com
+   npm config set '//npm.pkg.github.com/:_authToken' '${NPM_TOKEN}'
+4. sable CLI: `bun add -g @sable-inc/toolbelt`, then `sable --version` and `sable update`.
+   `sable login`: tell me to finish the sign-in in the browser as EMAIL. Then `sable switch`
+   to the main Sable org (not Trials) and confirm `sable whoami`. If the org is missing,
+   note it in the log and go on.
+5. SableBrowse: `npm install -g @sable-inc/sablebrowse && sablebrowse setup`.
+6. Chrome: tell me to open Chrome, sign in as EMAIL, and click "Add to Chrome" on
+   https://chromewebstore.google.com/detail/ildldnmbjlkbomodicckikcenamaabfj. Wait for me.
+7. Apps: one at a time, tell me to open each app and sign in as EMAIL (Google sign-in), and
+   wait for me after each: Slack, Zoom, Granola, Claude, ChatGPT, Linear, Notion, Wispr Flow, Cursor,
+   1Password (needs the hire's 1Password invite).
+   If one has no invite yet, note it in the log and go on.
+8. Tell me to open System Settings > Privacy & Security and allow Microphone, Camera and
+   Screen & System Audio Recording for Chrome, Zoom and Wispr Flow. Wait for me.
+9. Run `sable-doctor` (after step 2, as `export NPM_TOKEN="$(gh auth token)"; sable-doctor`).
+   Fix every FAIL you can and rerun. If you skipped the GitHub steps,
+   the GitHub, NPM_TOKEN, npm, sable and SableBrowse FAILs are expected: don't try to fix
+   them. End with the final sable-doctor output, ~/setup-log.md, and a short list of what
+   the hire still has to do on day one (steps 2-5 if they were skipped).
 ```
 
 ## After
