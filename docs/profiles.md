@@ -2,9 +2,9 @@
 
 | profile | who | what changes vs `default` |
 |:--|:--|:--|
-| `default` | existing machines | nothing (builds the same system as `main`) |
+| `default` | existing machines | nothing (builds the same system as `main`); Orca (orca.dev) is installed on every profile but `trial` |
 | `onboard` | new hire Mac | + Notion, 1Password, Granola, Linear casks; + `sable-doctor`; work-app dock (Claude, ChatGPT, Zoom, Granola, Notes, Linear, Notion, Wispr Flow, 1Password); npm/bun globals under `$HOME`; `NPM_TOKEN` from `gh auth token` |
-| `trial` | trial laptops | everything `onboard` adds except Linear; − Devin, opam, qemu, texliveFull, zig; trial dock |
+| `trial` | trial laptops | everything `onboard` adds except Linear; no Orca; − Devin, opam, qemu, texliveFull, zig; trial dock |
 
 `tex-fmt` remains available to Neovim through the shared editor configuration.
 
