@@ -70,11 +70,12 @@ with that privacy permission. Terminal.app has it; Ghostty and Orca don't by def
    ```
 7. Open a new Terminal window. Sign in to GitHub as the slot's GitHub account, in the browser.
    Don't use `gh auth setup-git`: nix-config owns `~/.config/git/config`, so it fails with
-   "permission denied". The last two lines do the same in `~/.gitconfig`:
+   "permission denied". The last two lines do the same in `~/.gitconfig` (the `'!'` quoting
+   stops zsh from expanding `!$`):
    ```sh
    gh auth login --web --git-protocol https --scopes read:packages
    git config --file ~/.gitconfig credential.https://github.com.helper ""
-   git config --file ~/.gitconfig --add credential.https://github.com.helper "!$(command -v gh) auth git-credential"
+   git config --file ~/.gitconfig --add credential.https://github.com.helper '!'"$(command -v gh) auth git-credential"
    ```
 8. In that same Terminal.app window, type `claude` and press Return. Sign in with the slot's
    Google account, then paste the prompt below. Use the `claude` command in Terminal, not the
@@ -135,7 +136,7 @@ browser sign-ins: when a step needs one, tell me exactly what to do and wait.
    `! gh auth login --web --git-protocol https --scopes read:packages` and sign in as
    GITHUB_USER in the browser. Then set the credential helper yourself (not gh auth setup-git):
    git config --file ~/.gitconfig credential.https://github.com.helper ""
-   git config --file ~/.gitconfig --add credential.https://github.com.helper "!$(command -v gh) auth git-credential"
+   git config --file ~/.gitconfig --add credential.https://github.com.helper '!'"$(command -v gh) auth git-credential"
    Check `gh auth status` shows GITHUB_USER with read:packages. Open a new login shell and
    check `echo ${NPM_TOKEN:+set}` prints "set".
 3. npm registry for @sable-inc (the token stays in the environment, not in the file):
