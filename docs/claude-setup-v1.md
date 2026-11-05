@@ -156,7 +156,8 @@ browser sign-ins: when a step needs one, tell me exactly what to do and wait.
    If one has no invite yet, note it in the log and go on.
 8. Tell me to open System Settings > Privacy & Security and allow Microphone, Camera and
    Screen & System Audio Recording for Chrome, Zoom and Wispr Flow. Wait for me.
-9. Run `sable-doctor`. Fix every FAIL you can and rerun. If you skipped the GitHub steps,
+9. Run `sable-doctor` (after step 2, as `export NPM_TOKEN="$(gh auth token)"; sable-doctor`).
+   Fix every FAIL you can and rerun. If you skipped the GitHub steps,
    the GitHub, NPM_TOKEN, npm, sable and SableBrowse FAILs are expected: don't try to fix
    them. End with the final sable-doctor output, ~/setup-log.md, and a short list of what
    the hire still has to do on day one (steps 2-5 if they were skipped).
