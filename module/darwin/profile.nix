@@ -55,6 +55,7 @@ in
         "/Applications/Linear.app"
         "/Applications/Notion.app"
         "/Applications/Wispr Flow.app"
+        "/Applications/1Password.app"
         "/System/Applications/Utilities/Terminal.app/"
         "${config.users.users.${user}.home}/Applications/Home Manager Apps/Cursor.app"
         "/System/Applications/System Settings.app"
