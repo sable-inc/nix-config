@@ -1,9 +1,16 @@
-# Trial Macs in Iru (v2)
+# Trial and new-hire Macs in Iru (v2)
 
-Iru runs the install that `docs/claude-setup-v1.md` does by hand. A person still creates the
-`sable` account at Setup Assistant. Iru then installs the Command Line Tools, Nix and this
-repo with the trial profile, and reports `sable-doctor` daily. Sign-ins (GitHub, Google,
-Claude) stay by hand.
+Iru runs the install that `docs/claude-setup-v1.md` does by hand, for trial Macs and for
+new-hire Macs. Setup Assistant asks only for Wi-Fi (unless the Mac has Ethernet) and the
+`sable` account. Iru then installs the Command Line Tools, Nix and this repo with the trial
+or onboard profile, and reports `sable-doctor` daily. Sign-ins (GitHub, Google, Claude) need
+the person's password and phone, so they stay with that person, guided by the Claude prompt.
+
+| blueprint | for | bootstrap profile |
+|:--|:--|:--|
+| **Sable Onboard** | new hires | `onboard` |
+| **Sable Trial** | trial laptops | `trial` |
+| **Default Blueprint** | every other Mac, including those enrolled before Nov 2026 | none (security settings only) |
 
 Automated Device Enrollment is connected (Apple Business, Oct 29, 2026): a Mac that is in
 Apple Business enrolls into Iru during Setup Assistant. A Mac not already in Apple Business
@@ -11,21 +18,26 @@ can be added with Apple Configurator for iPhone (see the end of this doc) or enr
 
 ## One-time setup in the Iru console
 
-Create a blueprint named **Sable Trial** and add:
+Sable Onboard and Sable Trial each get these items (done Nov 5, 2026):
 
 | library item | setting | file |
 |:--|:--|:--|
 | Device Name | name and hostname `sable-` + Asset tag | |
 | Custom Profile | upload | `mdm/chrome-sablebrowse.mobileconfig` |
-| Custom Script | run once per device; paste the file | `mdm/iru-bootstrap.sh` |
+| Custom Script | run once per device; paste the file with `profile` set for the blueprint | `mdm/iru-bootstrap.sh` |
 | Custom Script | run daily; paste the file | `mdm/iru-doctor.sh` |
+| Automated Device Enrollment | Mac: skip all Setup Assistant screens; primary account Admin | |
+
+The bootstrap is one library item per blueprint, because `profile` differs. The other items
+are shared. To make another blueprint like these, duplicate Sable Trial in Iru, then swap its
+bootstrap item for one with the right `profile`.
 
 `iru-bootstrap.sh` downloads `target/aarch64-darwin/bootstrap` from `main`. To test a branch,
 set `ref` in the pasted script to it, and set it back to `main` afterwards.
 
-**Default Blueprint** and **Sable Trial** carry Sable's security settings (disk encryption,
-screen lock, OS updates); add the same to any new blueprint, such as **Sable Trial
-(non-technical)**. The details are kept privately. Iru escrows FileVault keys, so don't store them by hand.
+All three blueprints carry Sable's security settings (disk encryption, screen lock, OS
+updates); add the same to any new blueprint, such as **Sable Trial (non-technical)**. The
+details are kept privately. Iru escrows FileVault keys, so don't store them by hand.
 
 Or by API: an Iru token with these write permissions lets a script create the same items.
 Grant only what is listed, and add the matching read permissions:
@@ -34,9 +46,13 @@ Grant only what is listed, and add the matching read permissions:
 - Library: create and update custom scripts and custom profiles
 - Devices: update (asset tag, blueprint), set name, erase
 
-In Iru's Automated Device Enrollment settings, set the blueprint for trial Macs to
-**Sable Trial** (today the default is "Default Blueprint"). Iru's enrollment settings can
-also create the `sable` account and skip Setup Assistant panes; untested here.
+New Macs in Apple Business default to Default Blueprint. Set each new Mac's blueprint in
+Iru (Enrollment, the "Enroll to" column, or the device page) before it is turned on.
+
+The enrollment item can also create `sable` itself ("Provision local administrator account",
+with the password from the vault, and primary account "Skip"). That would remove the account
+screen too, but someone still logs in as `sable` once so the bootstrap can finish. It is off
+until someone tests it on one Mac.
 
 Profile-based Device Enrollment also supervises Macs on macOS 11 or later; Apple Business
 is not required for supervision. For a hand-enrolled Mac, verify that Iru applies the Device
@@ -47,24 +63,28 @@ General > Sharing before retrying the bootstrap, which requires the `sable-` pre
 
 In Apple Business:
 
-1. In Iru, set the asset tag to the slot (`trial1`) and the blueprint to **Sable Trial**; the
-   Mac becomes `sable-trial1`
-2. Setup Assistant: the Mac enrolls into Iru on its own. Create the admin account with short
-   name `sable` (the password is in the vault) and log in. The bootstrap waits for `sable` to
-   be logged in before its last step
+1. In Iru, set the asset tag and the blueprint before the Mac is turned on. Trial: the slot
+   (`trial1`) and **Sable Trial**, so the Mac becomes `sable-trial1`. New hire: their first
+   name (`jane`) and **Sable Onboard**, so the Mac becomes `sable-jane`
+2. Setup Assistant: join Wi-Fi if there's no Ethernet. The Mac enrolls into Iru on its own and
+   skips every other screen except the account. Create the admin account with short name
+   `sable` (the password is in the vault) and log in. The bootstrap waits for `sable` to be
+   logged in before its last step
 
 Not in Apple Business:
 
 1. Setup Assistant: create `sable` as above and log in. Set the name to `sable-<slot>` in
    System Settings > General > Sharing
-2. Enroll by hand at the Iru enrollment portal with the Sable Trial code (Iru > Enrollment >
+2. Enroll by hand at the Iru enrollment portal with the blueprint's code (Iru > Enrollment >
    Manual Enrollment; the code is not kept in this repo). Then set the asset tag in Iru
 
 Then, either way:
 
 3. Wait until the bootstrap script passes on the device page (45 to 90 minutes on a fresh Mac; the first run downloads and builds everything)
-4. Put `~/trial-inputs.env` and the approved `~/trial-prompt-template.md` on the Mac as
-   described in `docs/claude-setup-v1.md`, then continue at step 7 (GitHub sign-in)
+4. Trial: put `~/trial-inputs.env` and the approved `~/trial-prompt-template.md` on the Mac
+   as described in `docs/claude-setup-v1.md`, then continue at step 7 (GitHub sign-in).
+   New hire: on their first day, they open Terminal.app, run `claude` and paste the new-hire
+   prompt from `docs/claude-setup-v1.md` (section C)
 
 The bootstrap log is also on the Mac at `/var/log/sable-bootstrap.log`.
 

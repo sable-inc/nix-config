@@ -5,11 +5,11 @@ For the office person setting up a Sable trial laptop. Covers:
 - **A. New trial laptop:** a brand-new Mac joins the trial pool
 - **B. Reset:** an existing trial laptop gets the next candidate. Erase it first (below), then
   follow A
-- **C. New-hire Mac:** follow hand steps 1-6 with `--profile onboard` and the person's own
-  hostname (`--hostname sable-<name>`). Then run `claude` in Terminal.app and paste the
-  new-hire prompt (below the trial prompt). It does not use the trial input files. The trial
-  prompt is for trial laptops only
-  The Mac goes on the Default Blueprint in Iru; don't store the FileVault key by hand, Iru
+- **C. New-hire Mac:** Iru does steps 2-6 on the **Sable Onboard** blueprint
+  (`docs/iru.md`). Without Iru, follow hand steps 1-6 with `--profile onboard` and the
+  person's own hostname (`--hostname sable-<name>`). Then run `claude` in Terminal.app and
+  paste the new-hire prompt (below the trial prompt). It does not use the trial input files.
+  The trial prompt is for trial laptops only. Don't store the FileVault key by hand; Iru
   escrows it
 
 No secrets go in this file, in Slack, or in the repo. Passwords come from the vault. Time each
