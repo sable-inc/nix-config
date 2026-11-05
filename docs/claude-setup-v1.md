@@ -8,6 +8,8 @@ For the office person setting up a Sable trial laptop. Covers:
 - **C. New-hire Mac:** follow hand steps 1-7 with `--profile onboard`, the person's own
   hostname (`--hostname sable-<name>`) and their own Google and GitHub accounts, then run
   `sable-doctor`. The Claude prompt is trial-only for now
+  The Mac goes on the Default Blueprint in Iru; don't store the FileVault key by hand, Iru
+  escrows it
 
 No secrets go in this file, in Slack, or in the repo. Passwords come from the vault. Time each
 step in the two-Mac checklist.
