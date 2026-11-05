@@ -27,7 +27,7 @@ in
   config = lib.mkMerge [
     (lib.mkIf (profile != "default") {
       environment.systemPackages = [ sableDoctor ];
-      homebrew.casks = [ "notion" ];
+      homebrew.casks = [ "notion" "1password" ];
       home-manager.users.${user} = {
         # Nix's node lives in the read-only store, so npm and bun globals go under $HOME.
         home.sessionVariables.NPM_CONFIG_PREFIX = "$HOME/.npm-global";

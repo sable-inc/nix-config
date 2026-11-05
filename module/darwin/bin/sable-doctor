@@ -25,7 +25,7 @@ check "nix-darwin switched" "cd /etc/nix-darwin && nix run path:.#build-switch" 
 check "Homebrew" "rerun build-switch" brew --version
 
 echo "== apps"
-for app in "Google Chrome" Claude ChatGPT zoom.us "Wispr Flow" Ghostty OrbStack Notion; do
+for app in "Google Chrome" Claude ChatGPT zoom.us "Wispr Flow" Ghostty OrbStack Notion 1Password; do
   check "$app.app" "rerun build-switch" test -d "/Applications/$app.app"
 done
 [ "$profile" = onboard ] && check "Linear.app" "rerun build-switch" test -d /Applications/Linear.app
