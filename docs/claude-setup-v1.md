@@ -69,12 +69,13 @@ with that privacy permission. Terminal.app has it; Ghostty and Orca don't by def
    cd /etc/nix-darwin && nix --extra-experimental-features 'nix-command flakes' run path:.#build-switch
    ```
 7. Open a new Terminal window. Sign in to GitHub as the slot's GitHub account, in the browser.
+   When asked "Authenticate Git with your GitHub credentials?", answer **No**.
    Don't use `gh auth setup-git`: nix-config owns `~/.config/git/config`, so it fails with
    "permission denied". The last two lines do the same in `~/.gitconfig` (the `'!'` quoting
    stops zsh from expanding `!$`):
    ```sh
    gh auth login --web --git-protocol https --scopes read:packages
-   git config --file ~/.gitconfig credential.https://github.com.helper ""
+   git config --file ~/.gitconfig --replace-all credential.https://github.com.helper ""
    git config --file ~/.gitconfig --add credential.https://github.com.helper '!'"$(command -v gh) auth git-credential"
    ```
 8. In that same Terminal.app window, type `claude` and press Return. Sign in with the slot's
@@ -133,9 +134,10 @@ browser sign-ins: when a step needs one, tell me exactly what to do and wait.
 1. Check: `id -un` is sable, `scutil --get LocalHostName` starts with sable-, and
    /etc/nix-darwin/local.nix sets the profile to "onboard". If any check fails, stop.
 2. GitHub (skip to step 6 if GITHUB_USER is "not yet"): tell me to type
-   `! gh auth login --web --git-protocol https --scopes read:packages` and sign in as
+   `! gh auth login --web --git-protocol https --scopes read:packages`.
+   Tell me to answer No to "Authenticate Git with your GitHub credentials?" and sign in as
    GITHUB_USER in the browser. Then set the credential helper yourself (not gh auth setup-git):
-   git config --file ~/.gitconfig credential.https://github.com.helper ""
+   git config --file ~/.gitconfig --replace-all credential.https://github.com.helper ""
    git config --file ~/.gitconfig --add credential.https://github.com.helper '!'"$(command -v gh) auth git-credential"
    Check `gh auth status` shows GITHUB_USER with read:packages. Your shell started before
    this sign-in, so it has no NPM_TOKEN: begin every command in steps 3-5 with
