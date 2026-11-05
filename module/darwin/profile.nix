@@ -46,8 +46,6 @@ in
       # New hires get the work apps in the dock, not only the default set.
       system.defaults.dock.persistent-apps = lib.mkForce [
         "/Applications/Google Chrome.app"
-        "/System/Applications/Mail.app"
-        "/System/Applications/Calendar.app"
         "/Applications/Nix Apps/Spotify.app"
         "/Applications/Nix Apps/Slack.app"
         "/Applications/zoom.us.app"
@@ -56,9 +54,7 @@ in
         "/Applications/Linear.app"
         "/Applications/Notion.app"
         "/System/Applications/Utilities/Terminal.app/"
-        "/Applications/Ghostty.app"
         "${config.users.users.${user}.home}/Applications/Home Manager Apps/Cursor.app"
-        "${config.users.users.${user}.home}/Applications/Home Manager Apps/Visual Studio Code.app"
         "/System/Applications/System Settings.app"
       ];
     })
