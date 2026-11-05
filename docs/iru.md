@@ -26,7 +26,7 @@ Sable Onboard and Sable Trial each get these items (done Nov 5, 2026):
 | Custom Profile | upload | `mdm/chrome-sablebrowse.mobileconfig` |
 | Custom Script | run once per device; paste the file with `profile` set for the blueprint | `mdm/iru-bootstrap.sh` |
 | Custom Script | run daily; paste the file | `mdm/iru-doctor.sh` |
-| Automated Device Enrollment | Mac: skip all Setup Assistant screens; primary account Admin | |
+| Automated Device Enrollment | Mac: "Skip all screens"; primary account Admin. Wi-Fi (without Ethernet) and creating the account still show | |
 
 The bootstrap is one library item per blueprint, because `profile` differs. The other items
 are shared. To make another blueprint like these, duplicate Sable Trial in Iru, then swap its
