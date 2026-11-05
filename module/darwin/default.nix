@@ -14,6 +14,7 @@ in
     ../shared
     ./home-manager.nix
     ./profile.nix
+    ./orca.nix
   ];
   environment = {
     shells = [
