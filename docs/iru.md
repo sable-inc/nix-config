@@ -66,7 +66,7 @@ In Apple Business:
 1. In Iru, set the asset tag and the blueprint before the Mac is turned on. Trial: the slot
    (`trial1`) and **Sable Trial**, so the Mac becomes `sable-trial1`. New hire: their first
    name (`jane`) and **Sable Onboard**, so the Mac becomes `sable-jane`. If a Mac already has
-   that name, add the last name's initial (`jane-d`), then the whole last name (`jane-doe`).
+   that name, use the first initial and last name (`jdoe`).
    Use lowercase letters, digits and `-` only. The name shows on the Mac's login and lock
    screen
 2. Setup Assistant: join Wi-Fi if there's no Ethernet. The Mac enrolls into Iru on its own and
