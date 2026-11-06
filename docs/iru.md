@@ -81,10 +81,11 @@ Not in Apple Business:
 Then, either way:
 
 3. Wait until the bootstrap script passes on the device page (45 to 90 minutes on a fresh Mac; the first run downloads and builds everything)
-4. Trial: put `~/trial-inputs.env` and the approved `~/trial-prompt-template.md` on the Mac
-   as described in `docs/claude-setup-v1.md`, then continue at step 7 (GitHub sign-in).
-   New hire: on their first day, they open Terminal.app, run `claude` and paste the new-hire
-   prompt from `docs/claude-setup-v1.md` (section C)
+4. Trial: put `~/trial-inputs.env` on the Mac (plus `~/trial-prompt-template.md` when it lists
+   an agent), then follow step 7 of `docs/claude-setup-v1.md`: app sign-ins, and `sable-setup`
+   for every role except EL, AE and Marketing.
+   New hire: on their first day, they sign in to their apps and run `sable-setup`
+   (`docs/claude-setup-v1.md`, section C)
 
 The bootstrap log is also on the Mac at `/var/log/sable-bootstrap.log`.
 
@@ -95,15 +96,20 @@ bootstrap if later steps need sudo after the grant expires.
 
 ## Non-technical trials
 
-No Nix and no Vercel. Create a second blueprint, **Sable Trial (non-technical)**, with the
-Device Name item, the Chrome profile, and Iru Auto Apps instead of the bootstrap: Google
-Chrome, Slack, Zoom, Claude, Cursor, ChatGPT, Notion, Granola and Wispr Flow. Skip
-`docs/claude-setup-v1.md`; the trialer signs in with Google.
+EL, AE and Marketing trials use a normal Sable Trial Mac with no GitHub or other access in
+`trial-inputs.env`: they only sign in to the apps. A lighter blueprint without Nix (Iru Auto
+Apps instead of the bootstrap) is possible but not built.
 
 ## Reset
 
-Revoke the trialer's access first (the bots), then erase the Mac from Iru. It returns to
-Setup Assistant; start again at step 1.
+In this order, and finish each step before the next:
+
+1. Revoke the trialer's access (the bots). This rotates the slot's passwords and signs out
+   every session, including on the Mac. Never run it while someone is setting up or signing
+   in at a trial Mac (ask whoever is at the Mac): they would have to sign in to everything again
+2. Check the slot's account is on Sable's Claude team with a seat that includes Claude Code.
+   Without one, `claude` asks for Pro or Max at sign-in
+3. Erase the Mac from Iru. It returns to Setup Assistant; start again at step 1
 
 ## Adding a Mac to Apple Business
 

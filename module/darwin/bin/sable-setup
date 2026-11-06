@@ -1,0 +1,140 @@
+# sable-setup: finish a Sable Mac after the Iru install. Run in Terminal.app as sable.
+# shellcheck disable=SC2088 # "~/..." strings are messages, not paths
+# Trial Macs read ~/trial-inputs.env (docs/claude-setup-v1.md) and set up only the access
+# listed there. New-hire Macs need no inputs file. Safe to rerun: each step checks first.
+# Never prints a token, password or API key.
+set -euo pipefail
+
+inputs="$HOME/trial-inputs.env"
+say() { printf '\n\033[1m== %s\033[0m\n' "$*"; }
+you() { printf '\033[1;33m>> %s\033[0m\n' "$*"; }
+die() { printf '\033[1;31mstopped: %s\033[0m\n' "$*" >&2; exit 1; }
+have() { command -v "$1" >/dev/null 2>&1; }
+input() { sed -n "s/^$1=\"\{0,1\}\([^\"]*\)\"\{0,1\}.*/\1/p" "$inputs" 2>/dev/null | head -1; }
+wait_enter() { read -r -p "Press Return when done. " _; }
+
+profile=$(grep -o 'sable.profile *= *"[a-z]*"' /etc/nix-darwin/local.nix 2>/dev/null | grep -o '"[a-z]*"' | tr -d '"')
+case "$profile" in
+  trial) org="Trials" ;;
+  onboard) org="Sable" ;;
+  *) die "sable-setup is for trial and new-hire Macs (this one is profile '${profile:-default}')" ;;
+esac
+[ "$(id -un)" = sable ] || die "run this as the sable user"
+
+email="" github_user="" repos="" agent_path="" agent_id="" api_keys="" vercel="" gcp=""
+if [ "$profile" = trial ]; then
+  [ -s "$inputs" ] || die "$inputs is missing; ask the Onboarding bot for it"
+  if grep -Eq '<[A-Za-z_]+>|agt_X{4,}|agt_\.\.\.|TODO' "$inputs"; then
+    die "$inputs still has placeholders; ask the Onboarding bot for the real values"
+  fi
+  email=$(input TRIAL_EMAIL); github_user=$(input TRIAL_GITHUB_USER); repos=$(input REPOS)
+  agent_path=$(input AGENT_PATH); agent_id=$(input AGENT_ID)
+  api_keys=$(input API_KEYS); vercel=$(input VERCEL); gcp=$(input GCP)
+  [ -n "$email" ] || die "TRIAL_EMAIL is empty in $inputs"
+  [ "$(scutil --get LocalHostName)" = "sable-$(input TRIAL_SLOT)" ] || die "this Mac is $(scutil --get LocalHostName), but $inputs is for sable-$(input TRIAL_SLOT)"
+  if [ -z "$github_user" ]; then
+    if [ -n "$repos$agent_path$api_keys$vercel$gcp" ]; then die "TRIAL_GITHUB_USER is empty but other access is listed"; fi
+    say "No technical access listed: nothing to set up"
+    you "Sign in to Chrome, Slack, Zoom and the other apps with $email (Google sign-in)."
+    you "Allow the microphone, camera and screen recording when an app asks."
+    exec sable-doctor
+  fi
+  if [ -n "$agent_path" ]; then
+    case " $repos " in *" sable-inc/deployments"[@\ ]*) ;; *) die "AGENT_PATH needs sable-inc/deployments in REPOS" ;; esac
+    [ -n "$agent_id" ] || die "AGENT_PATH is set but AGENT_ID is empty"
+    [ -s "$HOME/trial-prompt-template.md" ] || die "~/trial-prompt-template.md is missing; ask the Onboarding bot for it"
+  fi
+fi
+
+say "GitHub"
+if gh auth status 2>&1 | grep -q 'read:packages' && { [ -z "$github_user" ] || [ "$(gh api user --jq .login 2>/dev/null)" = "$github_user" ]; }; then
+  echo "signed in as $(gh api user --jq .login)"
+else
+  you "Sign in to GitHub${github_user:+ as $github_user} in the browser that opens."
+  you "When asked \"Authenticate Git with your GitHub credentials?\", answer No."
+  gh auth login --web --git-protocol https --scopes read:packages
+  if [ -n "$github_user" ] && [ "$(gh api user --jq .login)" != "$github_user" ]; then
+    die "signed in to GitHub as $(gh api user --jq .login), expected $github_user; run: gh auth logout, then sable-setup again"
+  fi
+fi
+# nix-config owns ~/.config/git/config, so the helper goes in ~/.gitconfig (not gh auth setup-git).
+git config --file "$HOME/.gitconfig" --replace-all credential.https://github.com.helper ""
+git config --file "$HOME/.gitconfig" --add credential.https://github.com.helper "!$(command -v gh) auth git-credential"
+NPM_TOKEN="$(gh auth token)"
+export NPM_TOKEN
+
+say "Sable packages"
+npm config set @sable-inc:registry https://npm.pkg.github.com
+# shellcheck disable=SC2016 # npm expands ${NPM_TOKEN} itself, so the token never lands in ~/.npmrc
+npm config set '//npm.pkg.github.com/:_authToken' '${NPM_TOKEN}'
+have sable || bun add -g @sable-inc/toolbelt
+sable update >/dev/null 2>&1 || true
+
+say "Sable platform ($org org)"
+if ! sable --json whoami >/dev/null 2>&1; then
+  you "Open the link below and sign in${email:+ as $email}."
+  sable login --no-browser
+fi
+org_id=$(sable --json switch --list | python3 -I -c 'import json,sys; d=json.load(sys.stdin); d=d if isinstance(d,list) else d.get("orgs",d.get("items",[])); m=[o["publicId"] for o in d if o.get("name")==sys.argv[1]]; print(m[0] if len(m)==1 else "")' "$org")
+[ -n "$org_id" ] || die "this account can't see the $org org; an engineer must invite ${email:-it} to $org"
+sable switch "$org_id" >/dev/null
+echo "active org: $org"
+
+say "SableBrowse"
+have sablebrowse || npm install -g @sable-inc/sablebrowse
+you "Click \"Add to Chrome\" on the page that opens (sign in to Chrome${email:+ as $email} first if asked)."
+sablebrowse setup
+
+for spec in $repos; do
+  repo="${spec%@*}"; branch=""; [ "$spec" != "$repo" ] && branch="${spec#*@}"
+  dir="$HOME/${repo##*/}"
+  say "Repo $repo${branch:+ ($branch)}"
+  [ -d "$dir/.git" ] || gh repo clone "$repo" "$dir"
+  [ -z "$branch" ] || git -C "$dir" checkout "$branch"
+done
+
+if [ -n "$agent_path" ]; then
+  say "Trial agent $agent_path"
+  agent_dir="$HOME/deployments/$agent_path"
+  [ -d "$agent_dir" ] || die "$agent_dir doesn't exist on this branch"
+  grep -q "$agent_id" "$agent_dir/deployment.yaml" || die "$agent_dir/deployment.yaml doesn't use $agent_id"
+  (cd "$agent_dir" && sable build && sable lint)
+  sed -e "s|{{AGENT_PATH}}|$agent_path|g" -e "s|{{AGENT_ID}}|$agent_id|g" "$HOME/trial-prompt-template.md" > "$HOME/TRIAL_PROMPT.md"
+  echo "wrote ~/TRIAL_PROMPT.md"
+fi
+
+if [ "$api_keys" = yes ]; then
+  say "API keys (stored in the login Keychain, never shown)"
+  for key in ANTHROPIC_API_KEY OPENAI_API_KEY; do
+    if security find-generic-password -a sable -s "$key" >/dev/null 2>&1; then echo "$key: already stored"; continue; fi
+    you "Paste the $key at the hidden prompt below (nothing shows as you type), twice."
+    security add-generic-password -U -a sable -s "$key" -w
+  done
+fi
+
+if [ "$vercel" = yes ]; then
+  say "Vercel"
+  have vercel || npm install -g vercel
+  if ! vercel whoami >/dev/null 2>&1; then
+    you "Sign in to Vercel${email:+ as $email}."
+    vercel login
+  fi
+fi
+
+if [ "$gcp" = yes ]; then
+  say "Google Cloud"
+  if [ "$(gcloud auth list --filter=status:ACTIVE --format='value(account)' 2>/dev/null)" != "$email" ]; then
+    you "Sign in to Google Cloud as $email in the browser that opens."
+    gcloud auth login "$email"
+  fi
+fi
+
+say "Permissions"
+you "Allow the microphone, camera and screen recording for Chrome, Zoom and Wispr Flow when they ask,"
+you "or now in System Settings > Privacy & Security."
+wait_enter
+
+say "Check"
+doctor_args=()
+[ -n "$agent_path" ] && doctor_args=(--trial-dir "$HOME/deployments/$agent_path")
+exec sable-doctor ${doctor_args[@]+"${doctor_args[@]}"}

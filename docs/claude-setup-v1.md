@@ -7,36 +7,61 @@ For the office person setting up a Sable trial laptop. Covers:
   follow A
 - **C. New-hire Mac:** Iru does steps 2-6 on the **Sable Onboard** blueprint
   (`docs/iru.md`). Without Iru, follow hand steps 1-6 with `--profile onboard` and the
-  person's own hostname (`--hostname sable-<name>`). Then run `claude` in Terminal.app and
-  paste the new-hire prompt (below the trial prompt). It does not use the trial input files.
-  The trial prompt is for trial laptops only. Don't store the FileVault key by hand; Iru
-  escrows it
+  person's own hostname (`--hostname sable-<name>`). Then the hire signs in to their apps and
+  runs `sable-setup` (section C below). Don't store the FileVault key by hand; Iru escrows it
 
 No secrets go in this file, in Slack, or in the repo. Passwords come from the vault. Time each
 step in the two-Mac checklist.
 
 ## Inputs from the bots
 
+Every trial Mac gets the same install and apps. What differs is the access the bots grant for
+the candidate's role, and `sable-setup` sets up exactly that access and nothing more:
+
+| Role | The bots grant | `trial-inputs.env` lines |
+|---|---|---|
+| DS | sable-inc/deployments (trial branch), the trial agent, Trials org | `TRIAL_GITHUB_USER`, `REPOS="sable-inc/deployments@trial/<first>-<last>"`, `AGENT_PATH`, `AGENT_ID` |
+| Eng, FDE | their own new repo `sable-inc/<name>`, Anthropic and OpenAI keys, Vercel, GCP, Trials org | `TRIAL_GITHUB_USER`, `REPOS="sable-inc/<name>"`, `API_KEYS="yes"`, `VERCEL="yes"`, `GCP="yes"` |
+| Design | repos to be decided (deployments for now), Trials org | `TRIAL_GITHUB_USER`, `REPOS` |
+| Security | read-only GCP on the project under review, Trust Center, repos to be decided, Trials org | `TRIAL_GITHUB_USER`, `REPOS`, `GCP="yes"` |
+| EL, AE, Marketing | Trials org on the web (no repos or CLI) | none |
+
+The slot's GitHub account gets only the repos in `REPOS`. Remove the previous trial's repo and
+GCP access at reset.
+
 The Onboarding bot produces one file per trial, `trial-inputs.env`, with no secrets in it.
-Copy it to `~/trial-inputs.env` on the laptop:
+Copy it to `~/trial-inputs.env` on the laptop. Leave out any line the role doesn't need:
 
 ```sh
+# A DS trial
 TRIAL_NAME="Jane Doe"
 TRIAL_EMAIL="trial1@sable.ai"          # the slot's Google account
-TRIAL_SLOT="trial1"                    # hostname becomes sable-trial1
-TRIAL_ROLE="eng"                       # eng | ds | fde | el
-TRIAL_GITHUB_USER="<GITHUB_USER>"      # the slot's GitHub account
-TRIAL_BRANCH="trials/jane-doe"
-AGENT_PATH="trials/partner-qualifier-jane"
+TRIAL_SLOT="trial1"                    # this Mac is sable-trial1
+TRIAL_GITHUB_USER="<GITHUB_USER>"      # the slot's GitHub account; empty = no technical setup
+REPOS="sable-inc/deployments@trial/jane-doe"   # space-separated, @branch optional
+AGENT_PATH="trials/partner-qualifier-jane"     # inside ~/deployments
 AGENT_ID="agt_..."                     # the trial agent, never a live one
 ```
 
-Ask the Onboarding bot for the approved trial prompt template and save it as
-`~/trial-prompt-template.md`. Do not start the Claude step until both input files are present.
-Keep these per-trial files on the laptop, not in this public repository.
+An Eng or FDE trial replaces the last three lines with:
 
-If any value still looks like `<...>`, `agt_...`, `agt_XXXX` or `TODO`, stop and ask the Onboarding bot.
-That is what broke the Oct 25 trial.
+```sh
+REPOS="sable-inc/jane-doe"
+API_KEYS="yes"                         # Anthropic and OpenAI keys, typed in by a person
+VERCEL="yes"
+GCP="yes"                              # gcloud signed in as TRIAL_EMAIL
+```
+
+`sable-setup` stores the API keys in the login Keychain, never in a file or shell history.
+New shells on the trial Mac export them as `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`.
+
+With `AGENT_PATH`, also ask the Onboarding bot for the approved trial prompt template and save
+it as `~/trial-prompt-template.md`. `sable-setup` writes `~/TRIAL_PROMPT.md` from it, replacing
+`{{AGENT_PATH}}` and `{{AGENT_ID}}`.
+
+If any value still looks like `<...>`, `agt_...`, `agt_XXXX` or `TODO`, `sable-setup` stops.
+That is what broke the Oct 25 trial. Keep these per-trial files on the laptop, not in this
+public repository.
 
 ## B only: reset first
 
@@ -58,7 +83,7 @@ with that privacy permission. Terminal.app has it; Ghostty and Orca don't by def
    ```sh
    sh <(curl --proto '=https' --tlsv1.2 -L https://nixos.org/nix/install) --daemon
    ```
-5. Install nix-config with the trial profile (replace `trial1` with the slot):
+5. Install nix-config with the trial profile, for every trial type (replace `trial1` with the slot):
    ```sh
    nix --extra-experimental-features 'nix-command flakes' run --refresh \
      github:sable-inc/nix-config#init -- --profile trial --hostname sable-trial1
@@ -68,102 +93,27 @@ with that privacy permission. Terminal.app has it; Ghostty and Orca don't by def
    ```sh
    cd /etc/nix-darwin && nix --extra-experimental-features 'nix-command flakes' run path:.#build-switch
    ```
-7. Open a new Terminal window. Sign in to GitHub as the slot's GitHub account, in the browser.
-   When asked "Authenticate Git with your GitHub credentials?", answer **No**.
-   Don't use `gh auth setup-git`: nix-config owns `~/.config/git/config`, so it fails with
-   "permission denied". The last two lines do the same in `~/.gitconfig` (the `'!'` quoting
-   stops zsh from expanding `!$`):
-   ```sh
-   gh auth login --web --git-protocol https --scopes read:packages
-   git config --file ~/.gitconfig --replace-all credential.https://github.com.helper ""
-   git config --file ~/.gitconfig --add credential.https://github.com.helper '!'"$(command -v gh) auth git-credential"
-   ```
-8. In that same Terminal.app window, type `claude` and press Return. Sign in with the slot's
-   Google account, then paste the prompt below. Use the `claude` command in Terminal, not the
-   Claude desktop app or claude.ai: those run in the cloud and can't touch this Mac
+7. Put `~/trial-inputs.env` (and the template, for an agent) on the Mac. Then:
+   - **EL, AE, Marketing:** sign in to Chrome, Slack and the other apps with the slot's Google
+     account. Nothing else
+   - **Every other role:** in Terminal.app, run `sable-setup`. It signs in to GitHub, sets up
+     Sable's packages and the sable CLI in the Trials org, installs SableBrowse, then sets up
+     each piece of access in the file. It stops and tells you what to do at each browser
+     sign-in, the API key prompts and the Chrome extension, and ends with `sable-doctor`.
+     Safe to rerun: it skips what's already done. Then sign in to the apps as above
 
-## The prompt (paste into `claude` in Terminal.app as is; it reads `~/trial-inputs.env`)
+If something fails and the fix isn't obvious, run `claude` in Terminal.app and paste the
+output.
 
-```
-You are finishing the setup of a Sable work-trial Mac. Nix and nix-config are already
-installed. Log each step with start and end times in ~/setup-log.md. Never print, echo,
-log or commit a token or password. You cannot type passwords or complete browser sign-ins:
-when a step needs one, tell me exactly what to do and wait.
+## C. New-hire Mac, day one
 
-0. Read ~/trial-inputs.env and ~/trial-prompt-template.md. If either file is missing or empty,
-   or any input value is empty or contains "<", "XXXX", "TODO" or the agent-id placeholder "agt_...",
-   stop and tell me what is missing or wrong.
-1. Check: `id -un` is sable, `scutil --get LocalHostName` is sable-$TRIAL_SLOT,
-   `gh auth status` shows $TRIAL_GITHUB_USER with the read:packages scope, and
-   `echo ${NPM_TOKEN:+set}` prints "set". If NPM_TOKEN is empty, open a new login shell.
-2. npm registry for @sable-inc (the token stays in the environment, not in the file):
-   npm config set @sable-inc:registry https://npm.pkg.github.com
-   npm config set '//npm.pkg.github.com/:_authToken' '${NPM_TOKEN}'
-3. sable CLI: `bun add -g @sable-inc/toolbelt`, then `sable --version` and `sable update`.
-4. `sable login --no-browser`: give me the URL it prints and tell me to open it and sign
-   in as $TRIAL_EMAIL. Then `sable switch` to the Trials org and confirm `sable whoami`
-   shows it. If the org is missing, stop: an engineer must invite $TRIAL_EMAIL to Trials.
-5. SableBrowse: `npm install -g @sable-inc/sablebrowse && sablebrowse setup`.
-6. Repo: `gh repo clone sable-inc/deployments ~/deployments`, then
-   `git -C ~/deployments checkout $TRIAL_BRANCH`. Confirm ~/deployments/$AGENT_PATH exists
-   and its deployment.yaml uses $AGENT_ID. Then `sable build` and `sable lint` in that folder.
-7. Write ~/TRIAL_PROMPT.md from ~/trial-prompt-template.md, filling in the real $AGENT_PATH and
-   $AGENT_ID. No placeholders may remain.
-8. Tell me to: open Chrome, sign in as $TRIAL_EMAIL, and click "Add to Chrome" on
-   https://chromewebstore.google.com/detail/ildldnmbjlkbomodicckikcenamaabfj. Wait for me.
-9. Tell me to open System Settings > Privacy & Security and allow Microphone, Camera and
-   Screen & System Audio Recording for Chrome, Zoom and Wispr Flow. Wait for me.
-10. Run `sable-doctor --trial-dir ~/deployments/$AGENT_PATH`. Fix every FAIL you can and
-    rerun. End with the final sable-doctor output and ~/setup-log.md.
-```
+After Iru's install (or hand steps 1-6 with `--profile onboard`):
 
-## The new-hire prompt (section C; paste into `claude` in Terminal.app as is)
-
-Have the hire's Google password ready, and their phone if Google asks for a second step.
-Their GitHub account is optional: without it, Claude skips the GitHub steps and lists them
-for the hire's first day.
-
-```
-You are finishing the setup of a new Sable employee's Mac. Nix and nix-config (onboard
-profile) are already installed. Log each step with start and end times in ~/setup-log.md.
-Never print, echo, log or commit a token or password. You cannot type passwords or complete
-browser sign-ins: when a step needs one, tell me exactly what to do and wait.
-
-0. Ask me for the hire's @sable.ai email and their GitHub username (or "not yet"). Use
-   those below as EMAIL and GITHUB_USER.
-1. Check: `id -un` is sable, `scutil --get LocalHostName` starts with sable-, and
-   /etc/nix-darwin/local.nix sets the profile to "onboard". If any check fails, stop.
-2. GitHub (skip to step 6 if GITHUB_USER is "not yet"): tell me to type
-   `! gh auth login --web --git-protocol https --scopes read:packages`.
-   Tell me to answer No to "Authenticate Git with your GitHub credentials?" and sign in as
-   GITHUB_USER in the browser. Then set the credential helper yourself (not gh auth setup-git):
-   git config --file ~/.gitconfig --replace-all credential.https://github.com.helper ""
-   git config --file ~/.gitconfig --add credential.https://github.com.helper '!'"$(command -v gh) auth git-credential"
-   Check `gh auth status` shows GITHUB_USER with read:packages. Your shell started before
-   this sign-in, so it has no NPM_TOKEN: begin every command in steps 3-5 with
-   `export NPM_TOKEN="$(gh auth token)";` and never print it.
-3. npm registry for @sable-inc (the token stays in the environment, not in the file):
-   npm config set @sable-inc:registry https://npm.pkg.github.com
-   npm config set '//npm.pkg.github.com/:_authToken' '${NPM_TOKEN}'
-4. sable CLI: `bun add -g @sable-inc/toolbelt`, then `sable --version` and `sable update`.
-   `sable login --no-browser`: give me the URL it prints and tell me to open it and sign
-   in as EMAIL. Then `sable switch` to the main Sable org (not Trials) and confirm
-   `sable whoami`. If the org is missing, note it in the log and go on.
-5. SableBrowse: `npm install -g @sable-inc/sablebrowse && sablebrowse setup`.
-6. Chrome: tell me to open Chrome, sign in as EMAIL, and click "Add to Chrome" on
-   https://chromewebstore.google.com/detail/ildldnmbjlkbomodicckikcenamaabfj. Wait for me.
-7. Apps: one at a time, tell me to open each app and sign in as EMAIL (Google sign-in), and
-   wait for me after each: Slack, Zoom, Granola, Claude, ChatGPT, Linear, Notion, Wispr Flow, Cursor,
-   1Password (needs the hire's 1Password invite).
-   If one has no invite yet, note it in the log and go on.
-8. Tell me to open System Settings > Privacy & Security and allow Microphone, Camera and
-   Screen & System Audio Recording for Chrome, Zoom and Wispr Flow. Wait for me.
-9. Run `sable-doctor` (after step 2, as `export NPM_TOKEN="$(gh auth token)"; sable-doctor`).
-   Fix every FAIL you can and rerun. If you skipped the GitHub steps,
-   the GitHub, NPM_TOKEN, npm, sable and SableBrowse FAILs are expected: don't try to fix
-   them. End with the final sable-doctor output, ~/setup-log.md, and a short list of what
-   the hire still has to do on day one (steps 2-5 if they were skipped).
-```
+1. The hire signs in to each app with their @sable.ai Google account: Chrome, Slack, Zoom,
+   Granola, Claude, ChatGPT, Linear, Notion, Loom, Wispr Flow, Cursor, and 1Password (needs
+   their 1Password invite)
+2. Once their GitHub account is in sable-inc, they run `sable-setup` in Terminal.app. It does
+   the same as on a trial Mac, with the main Sable org instead of Trials and no inputs file
 
 ## After
 

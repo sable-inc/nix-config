@@ -1,13 +1,11 @@
 # Orca (orca.dev) has no Homebrew cask, so activation installs it from its GitHub release
 # when it is missing. Orca updates itself after that, so the app is owned by the user.
-# Trial laptops skip it.
 {
-  config,
   lib,
   user,
   ...
 }:
-lib.mkIf (config.sable.profile != "trial") {
+{
   system.activationScripts.postActivation.text = lib.mkAfter ''
     if [ ! -d /Applications/Orca.app ]; then
       echo "installing Orca..." >&2
@@ -26,6 +24,8 @@ lib.mkIf (config.sable.profile != "trial") {
             && /usr/sbin/chown -R ${user}:staff /Applications/.Orca.app.partial \
             && mv /Applications/.Orca.app.partial /Applications/Orca.app; then
             echo "installed Orca" >&2
+            # The Dock loaded before Orca existed; restart it so the Orca icon resolves.
+            /usr/bin/killall Dock 2>/dev/null || true
           else
             rm -rf /Applications/.Orca.app.partial
             echo "warning: couldn't install Orca, the next build-switch will try again" >&2

@@ -2,9 +2,9 @@
 
 | profile | who | what changes vs `default` |
 |:--|:--|:--|
-| `default` | existing machines | nothing (builds the same system as `main`); Orca (orca.dev) is installed on every profile but `trial` |
-| `onboard` | new hire Mac | + Notion, 1Password, Granola, Linear casks; + `sable-doctor`; work-app dock (Claude, ChatGPT, Zoom, Granola, Notes, Linear, Notion, Wispr Flow, 1Password); npm/bun globals under `$HOME`; `NPM_TOKEN` from `gh auth token` |
-| `trial` | trial laptops | everything `onboard` adds except Linear; no Orca; − Devin, opam, qemu, texliveFull, zig; trial dock |
+| `default` | existing machines | nothing (builds the same system as `main`); Orca (orca.dev) is installed on every profile |
+| `onboard` | new hire Mac | + Notion, 1Password, Granola, Linear, Loom casks; + `sable-setup`, `sable-doctor`; work-app dock (Chrome, Spotify, Slack, Zoom, Granola, Notes, Claude, ChatGPT, Linear, Notion, Loom, Wispr Flow, 1Password, Orca, Terminal, Cursor); npm/bun globals under `$HOME`; `NPM_TOKEN` from `gh auth token` |
+| `trial` | trial laptops | the same as `onboard`, except Figma and Canva instead of Loom (casks and dock); − Devin, opam, qemu, texliveFull, zig; API keys from the Keychain |
 
 `tex-fmt` remains available to Neovim through the shared editor configuration.
 
@@ -40,9 +40,15 @@ Run the Nix installer and `build-switch` from Terminal.app. On macOS 27, termina
 right privacy permission (Orca's terminal, for example) can't write `/etc/fstab`, and the Nix
 installer fails with "Operation not permitted".
 
+`sable-setup` finishes a trial or new-hire Mac after the install: GitHub sign-in, Sable's
+packages, the sable CLI (Trials org on trial Macs, Sable otherwise), SableBrowse, and on trial
+Macs the access listed in `~/trial-inputs.env` (repos, trial agent, API keys, Vercel, gcloud).
+It stops at each step a person must do and is safe to rerun.
+
 `sable-doctor [--trial-dir <path>]` prints PASS/FAIL per piece (apps, CLIs, gh auth and
 `read:packages`, npm registry, sable CLI and Trials org, SableBrowse and its Chrome extension,
-trial branch, `TRIAL_PROMPT.md`). Exit code is the number of FAILs. It never prints a secret.
+and on trial Macs each piece of access in `~/trial-inputs.env`). A trial with no GitHub user
+in the file checks only the machine, apps and CLIs. Exit code is the number of FAILs. It never prints a secret.
 
 `@sable-inc` packages come from GitHub Packages. The profile exports
 `NPM_TOKEN="$(gh auth token)"`, and `~/.npmrc` refers to it:
