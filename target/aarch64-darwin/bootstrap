@@ -17,6 +17,13 @@ log_file="/var/log/sable-bootstrap.log"
 log() { printf '%s sable-bootstrap: %s\n' "$(date -u +%FT%TZ)" "$*"; }
 die() { log "FAIL: $*"; exit 1; }
 
+[ "$(id -u)" -eq 0 ] || die "run as root"
+# One run at a time: rerun this script under lockf, which the kernel releases when the run
+# exits or is killed. A busy lock exits 75 (the update wrapper treats that as nothing to do).
+if [ -z "${SABLE_BOOTSTRAP_LOCKED:-}" ]; then
+  SABLE_BOOTSTRAP_LOCKED=1 exec /usr/bin/lockf -k -t 0 /var/run/sable-bootstrap.lock /bin/bash "$0" "$@"
+fi
+
 while [ "$#" -gt 0 ]; do
   if [ "$1" = --update ]; then update=1; shift; continue; fi
   [ "$#" -ge 2 ] || die "missing value for $1"
@@ -43,31 +50,7 @@ if [ "$update" = 1 ]; then
   profile="$(sed -n 's/^[[:space:]]*sable\.profile = "\([a-z]*\)";.*/\1/p' "$local_nix")"
   host_name="$(sed -n 's/^[[:space:]]*networking\.hostName = "\([^"]*\)";.*/\1/p' "$local_nix")"
 fi
-# One run at a time: the first install and the daily update never build together.
-# The lock is a symlink to the owner's pid, created atomically, so a lock left by a killed run
-# is reclaimed and two runs can never both hold it.
-lock=/var/run/sable-bootstrap.lock
-if ! ln -s "$$" "$lock" 2>/dev/null; then
-  owner="$(readlink "$lock" 2>/dev/null || true)"
-  if [ -n "$owner" ] && kill -0 "$owner" 2>/dev/null; then
-    log "another run (pid $owner) is in progress"
-    [ "$update" = 1 ] && exit 0
-    exit 1
-  fi
-  # Only one run reclaims, and only the dead owner's lock, so two reclaimers can't both win.
-  got=1
-  if mkdir "$lock.reclaim" 2>/dev/null; then
-    if [ "$(readlink "$lock" 2>/dev/null || true)" = "$owner" ]; then
-      log "reclaiming a lock left by an interrupted run (pid ${owner:-unknown})"
-      rm -f "$lock"
-    fi
-    ln -s "$$" "$lock" 2>/dev/null && got=0
-    rmdir "$lock.reclaim"
-  fi
-  [ "$got" = 0 ] || { log "another run holds the lock"; [ "$update" = 1 ] && exit 0; exit 1; }
-fi
-trap 'rm -f "$lock"' EXIT
-# Only the lock holder touches the sudo grant, so a skipped run can't revoke an active one.
+# This run holds the lock (see the top), so clearing a leftover grant can't revoke another run's.
 rm -f "$sudoers_file"
 # Iru's Device Name item may set HostName before LocalHostName, so take the first sable- name.
 sable_name() {
@@ -96,7 +79,7 @@ case "$host_name" in
 esac
 
 # The Nix installer, init and build-switch call sudo as $user; this drop-in is removed on exit.
-trap 'rm -f "$sudoers_file"; rm -f "$lock"' EXIT
+trap 'rm -f "$sudoers_file"' EXIT
 trap 'exit 1' HUP INT TERM
 # Sudo enforces expiry even after SIGKILL or reboot, when cleanup traps cannot run.
 sudo_expires_at="$(date -u -v+2H +%Y%m%d%H%M%SZ)"
@@ -170,12 +153,11 @@ cd /etc/nix-darwin
 # The last nix-config commit that built and switched; a failed build is retried next run.
 built_file=/var/db/sable-nix-config-built
 if [ "$update" = 1 ]; then
-  # Updates follow the fleet branch (a released point on main), even on a Mac first installed
-  # from a test branch; the local main branch is fast-forwarded to it.
+  # Build exactly the released commit: a local fleet branch reset to origin/fleet. A checkout
+  # that would overwrite local changes fails instead.
   { as_user git fetch --quiet origin fleet &&
-    { as_user git checkout --quiet main 2>/dev/null || as_user git checkout --quiet -b main origin/fleet; } &&
-    as_user git merge --ff-only --quiet origin/fleet; } ||
-    die "could not move /etc/nix-darwin to fleet (local changes?); fix by hand with git status there"
+    as_user git checkout --quiet -B fleet origin/fleet; } ||
+    die "could not check out the fleet release in /etc/nix-darwin (local changes?); fix by hand with git status there"
 else
   as_user git pull --ff-only --quiet || die "could not update /etc/nix-darwin (local changes?); fix by hand with git status there"
 fi

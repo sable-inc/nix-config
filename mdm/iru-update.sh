@@ -10,4 +10,8 @@ curl --proto '=https' --tlsv1.2 -fsSL -o "$dir/bootstrap" \
 /bin/bash "$dir/bootstrap" --update &
 child=$!
 trap 'kill -TERM "$child" 2>/dev/null; wait "$child"; exit 143' TERM INT HUP
-wait "$child"
+code=0
+wait "$child" || code=$?
+# 75: another run (the first install or an update) holds the lock; nothing to do this time.
+[ "$code" = 75 ] && exit 0
+exit "$code"
