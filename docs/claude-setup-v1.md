@@ -117,7 +117,8 @@ output.
 After Iru's install (or hand steps 1-6 with `--profile onboard`):
 
 1. The hire changes the `sable` password to their own: System Settings > Users & Groups.
-   It also unlocks FileVault, and the vault password is shared
+   The Mac starts with the setup password from Sable's vault, which others know. The new
+   password is also the one that unlocks the disk at startup; the hire keeps it to themselves
 2. The hire signs in to each app with their @sable.ai Google account: Chrome, Slack, Zoom,
    Granola, Claude, ChatGPT, Linear, Notion, Loom, Wispr Flow, Cursor, and 1Password (needs
    their 1Password invite)
