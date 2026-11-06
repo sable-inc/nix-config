@@ -10,7 +10,7 @@ the person's password and phone, so they stay with that person, guided by the Cl
 |:--|:--|:--|
 | **Sable Onboard** | new hires | `onboard` |
 | **Sable Trial** | trial laptops | `trial` |
-| **Default Blueprint** | every other Mac, including those enrolled before Nov 2026 | none (security settings only) |
+| **Default Blueprint** | every other Mac: those enrolled before Nov 2026, and new hires after their first week | none (security settings and the Chrome extensions only) |
 
 Automated Device Enrollment is connected (Apple Business, Oct 29, 2026): a Mac that is in
 Apple Business enrolls into Iru during Setup Assistant. A Mac not already in Apple Business
@@ -104,6 +104,17 @@ The bootstrap temporarily grants `sable` passwordless sudo. Normal exits and han
 remove the grant. If cleanup cannot run (SIGKILL or reboot), the grant stops authorizing new
 sudo commands two hours after creation. Commands already running are not stopped. Rerun the
 bootstrap if later steps need sudo after the grant expires.
+
+## New hires after week one
+
+A new hire's Mac stays on **Sable Onboard** for their first week, so anything that needs
+fixing can be fixed and released. After that, move it to **Default Blueprint** (the device
+page, or Enrollment). Nothing is erased or uninstalled: the Mac just stops getting nix-config
+updates, so the hire's own apps, dock and settings are never reset. They can still update by
+hand from `/etc/nix-darwin`. Default Blueprint carries the security settings and the Chrome
+extensions profile (`mdm/chrome-sablebrowse.mobileconfig`); add that profile to it, or Chrome
+drops SableBrowse and 1Password when the Mac leaves Sable Onboard. Company-wide additions
+later go to Default Blueprint as Iru apps or profiles, which only add.
 
 ## Non-technical trials
 

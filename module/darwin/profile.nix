@@ -82,6 +82,8 @@ in
     })
     (lib.mkIf (profile == "onboard") {
       homebrew.casks = [ "loom" ];
+      # A hire's own Homebrew apps stay; trial Macs keep "zap" to clear the last candidate's.
+      homebrew.onActivation.cleanup = lib.mkForce "none";
     })
     (lib.mkIf (profile == "trial") {
       homebrew.casks = [
