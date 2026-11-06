@@ -57,21 +57,28 @@ in
         "/Applications/Notion.app"
         "/Applications/Wispr Flow.app"
         "/Applications/1Password.app"
+        "/Applications/Orca.app"
         "/System/Applications/Utilities/Terminal.app/"
         "${config.users.users.${user}.home}/Applications/Home Manager Apps/Cursor.app"
         "/System/Applications/System Settings.app"
       ];
     })
     (lib.mkIf (profile == "trial") {
-      # Trial laptops are wiped after every trial: no Devin seat, no Spotify in the dock.
+      # Trial laptops are wiped after every trial: the new-hire dock without Spotify or Linear.
       system.defaults.dock.persistent-apps = lib.mkForce [
         "/Applications/Google Chrome.app"
-        "/System/Applications/Utilities/Terminal.app/"
-        "/Applications/Ghostty.app"
-        "${config.users.users.${user}.home}/Applications/Home Manager Apps/Cursor.app"
-        "/Applications/Claude.app"
         "/Applications/Nix Apps/Slack.app"
         "/Applications/zoom.us.app"
+        "/Applications/Granola.app"
+        "/System/Applications/Notes.app"
+        "/Applications/Claude.app"
+        "/Applications/ChatGPT.app"
+        "/Applications/Notion.app"
+        "/Applications/Wispr Flow.app"
+        "/Applications/1Password.app"
+        "/Applications/Orca.app"
+        "/System/Applications/Utilities/Terminal.app/"
+        "${config.users.users.${user}.home}/Applications/Home Manager Apps/Cursor.app"
         "/System/Applications/System Settings.app"
       ];
     })
