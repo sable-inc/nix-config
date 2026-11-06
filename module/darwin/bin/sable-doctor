@@ -25,10 +25,10 @@ done
 profile_file=/etc/nix-darwin/local.nix
 profile=$(grep -o 'sable.profile *= *"[a-z]*"' "$profile_file" 2>/dev/null | grep -o '"[a-z]*"' | tr -d '"')
 # Trial Macs need only the access grokbot listed; other Macs need the GitHub and Sable tools.
-email=""; repos=""; agent_path=""; api_keys=""; vercel=""; gcp=""; technical=1; platform=yes
+email=""; repos=""; agent_path=""; api_keys=""; vercel=""; gcp=""; technical=1
 if [ "$profile" = trial ]; then
   email=$(input TRIAL_EMAIL); repos=$(input REPOS); agent_path=$(input AGENT_PATH)
-  api_keys=$(input API_KEYS); vercel=$(input VERCEL); gcp=$(input GCP); platform=$(input PLATFORM)
+  api_keys=$(input API_KEYS); vercel=$(input VERCEL); gcp=$(input GCP)
   [ -n "$(input TRIAL_GITHUB_USER)" ] || technical=0
   [ -n "$agent_path" ] && [ -z "$trial_dir" ] && trial_dir="$HOME/deployments/$agent_path"
 fi
@@ -69,7 +69,7 @@ check "@sable-inc registry in ~/.npmrc" "npm config set @sable-inc:registry http
 check "npm auth reads NPM_TOKEN" "npm config set '//npm.pkg.github.com/:_authToken' '\${NPM_TOKEN}'" grep -q 'npm.pkg.github.com/:_authToken=${NPM_TOKEN}' "$HOME/.npmrc"
 fi
 
-if [ "$technical" = 1 ] && [ "$platform" = yes ]; then
+if [ "$technical" = 1 ]; then
 echo "== Sable tools"
 if have sable; then
   ok "sable CLI installed ($(sable --version 2>/dev/null | head -1))"
@@ -80,7 +80,6 @@ if have sable; then
 else bad "sable CLI" "bun add -g @sable-inc/toolbelt"; fi
 fi
 if [ "$technical" = 1 ]; then
-echo "== SableBrowse"
 if have sablebrowse; then
   ok "SableBrowse installed"
   check "sablebrowse doctor" "sablebrowse setup" sablebrowse doctor

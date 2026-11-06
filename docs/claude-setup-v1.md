@@ -20,9 +20,9 @@ the candidate's role, and `sable-setup` sets up exactly that access and nothing 
 
 | Role | The bots grant | `trial-inputs.env` lines |
 |---|---|---|
-| DS | sable-inc/deployments (trial branch), the trial agent, Trials org | `TRIAL_GITHUB_USER`, `PLATFORM="yes"`, `REPOS="sable-inc/deployments@trial/<first>-<last>"`, `AGENT_PATH`, `AGENT_ID` |
-| Eng, FDE | their own new repo `sable-inc/<name>`, Anthropic and OpenAI keys, Vercel, GCP, Trials org | `TRIAL_GITHUB_USER`, `PLATFORM="yes"`, `REPOS="sable-inc/<name>"`, `API_KEYS="yes"`, `VERCEL="yes"`, `GCP="yes"` |
-| Design | repos to be decided (deployments for now), Trials org | `TRIAL_GITHUB_USER`, `PLATFORM="yes"`, `REPOS` |
+| DS | sable-inc/deployments (trial branch), the trial agent, Trials org | `TRIAL_GITHUB_USER`, `REPOS="sable-inc/deployments@trial/<first>-<last>"`, `AGENT_PATH`, `AGENT_ID` |
+| Eng, FDE | their own new repo `sable-inc/<name>`, Anthropic and OpenAI keys, Vercel, GCP, Trials org | `TRIAL_GITHUB_USER`, `REPOS="sable-inc/<name>"`, `API_KEYS="yes"`, `VERCEL="yes"`, `GCP="yes"` |
+| Design | repos to be decided (deployments for now), Trials org | `TRIAL_GITHUB_USER`, `REPOS` |
 | Security | read-only GCP on the project under review, Trust Center, repos to be decided | `TRIAL_GITHUB_USER`, `REPOS`, `GCP="yes"` |
 | EL, AE, Marketing | nothing beyond the apps | none |
 
@@ -37,7 +37,6 @@ TRIAL_NAME="Jane Doe"
 TRIAL_EMAIL="trial1@sable.ai"          # the slot's Google account
 TRIAL_SLOT="trial1"                    # this Mac is sable-trial1
 TRIAL_GITHUB_USER="<GITHUB_USER>"      # the slot's GitHub account; empty = no technical setup
-PLATFORM="yes"                         # sable CLI signed in to the Trials org
 REPOS="sable-inc/deployments@trial/jane-doe"   # space-separated, @branch optional
 AGENT_PATH="trials/partner-qualifier-jane"     # inside ~/deployments
 AGENT_ID="agt_..."                     # the trial agent, never a live one
@@ -88,8 +87,8 @@ with that privacy permission. Terminal.app has it; Ghostty and Orca don't by def
    - **EL, AE, Marketing:** sign in to Chrome, Slack and the other apps with the slot's Google
      account. Nothing else
    - **Every other role:** in Terminal.app, run `sable-setup`. It signs in to GitHub, sets up
-     Sable's packages, installs SableBrowse, then sets up each piece of access in the file
-     (the sable CLI in the Trials org only with `PLATFORM="yes"`). It stops and tells you what to do at each browser
+     Sable's packages and the sable CLI in the Trials org, installs SableBrowse, then sets up
+     each piece of access in the file. It stops and tells you what to do at each browser
      sign-in, the API key prompts and the Chrome extension, and ends with `sable-doctor`.
      Safe to rerun: it skips what's already done. Then sign in to the apps as above
 
