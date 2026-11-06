@@ -33,7 +33,7 @@ The Onboarding bot writes one file per trial, `<slot>/trial-inputs.env` (for exa
 `trial3/trial-inputs.env`), in the private repo `sable-inc/trial-inputs`, with no secrets in it.
 Nobody copies it: `sable-setup` signs in to GitHub as the slot's account and downloads the file
 for this Mac's slot (from its name, `sable-trial3`). Every slot's GitHub account needs read
-access to that repo, including for EL, AE and Marketing trials; `sable-setup` signs those out
+access to that repo (`sable-setup` accepts the invite), including for EL, AE and Marketing trials; `sable-setup` signs those out
 of GitHub again. Leave out any line the role doesn't need:
 
 ```sh

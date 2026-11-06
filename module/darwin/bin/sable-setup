@@ -42,6 +42,9 @@ if [ "$profile" = trial ]; then
   case "$host" in sable-trial*) slot="${host#sable-}" ;; *) die "this Mac is $host; a trial Mac is named sable-trial<n>" ;; esac
   say "GitHub (the $slot GitHub account)"
   github_login "the $slot GitHub account" || echo "GitHub sign-in failed; trying the list already on this Mac"
+  # Slot accounts are outside collaborators: accept the repo's pending invite, if any.
+  invite=$(gh api user/repository_invitations --jq ".[] | select(.repository.full_name==\"$inputs_repo\") | .id" 2>/dev/null | head -1) || true
+  [ -z "$invite" ] || gh api -X PATCH "user/repository_invitations/$invite" >/dev/null 2>&1 || true
   if fetch "$slot/trial-inputs.env" "$inputs"; then echo "got $slot's list from $inputs_repo"
   elif [ -s "$inputs" ]; then echo "using the list already on this Mac ($inputs)"
   else die "no list for $slot: ask the Onboarding bot to add $slot/trial-inputs.env to $inputs_repo (or check this GitHub account can read it)"; fi
