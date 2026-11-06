@@ -23,8 +23,8 @@ the candidate's role, and `sable-setup` sets up exactly that access and nothing 
 | DS | sable-inc/deployments (trial branch), the trial agent, Trials org | `TRIAL_GITHUB_USER`, `REPOS="sable-inc/deployments@trial/<first>-<last>"`, `AGENT_PATH`, `AGENT_ID` |
 | Eng, FDE | their own new repo `sable-inc/<name>`, Anthropic and OpenAI keys, Vercel, GCP, Trials org | `TRIAL_GITHUB_USER`, `REPOS="sable-inc/<name>"`, `API_KEYS="yes"`, `VERCEL="yes"`, `GCP="yes"` |
 | Design | repos to be decided (deployments for now), Trials org | `TRIAL_GITHUB_USER`, `REPOS` |
-| Security | read-only GCP on the project under review, Trust Center, repos to be decided | `TRIAL_GITHUB_USER`, `REPOS`, `GCP="yes"` |
-| EL, AE, Marketing | nothing beyond the apps | none |
+| Security | read-only GCP on the project under review, Trust Center, repos to be decided, Trials org | `TRIAL_GITHUB_USER`, `REPOS`, `GCP="yes"` |
+| EL, AE, Marketing | Trials org on the web (no repos or CLI) | none |
 
 The slot's GitHub account gets only the repos in `REPOS`. Remove the previous trial's repo and
 GCP access at reset.
