@@ -8,9 +8,10 @@
       <key>ExtensionInstallForcelist</key>
       <array>
         <string>ildldnmbjlkbomodicckikcenamaabfj;https://clients2.google.com/service/update2/crx</string>
+        <string>aeblfdkhhhdcdjpifhhbdiojplfjncoa;https://clients2.google.com/service/update2/crx</string>
       </array>
       <key>PayloadDisplayName</key>
-      <string>Google Chrome: SableBrowse</string>
+      <string>Google Chrome: SableBrowse and 1Password</string>
       <key>PayloadIdentifier</key>
       <string>com.sable.chrome.sablebrowse.payload</string>
       <key>PayloadType</key>
@@ -22,7 +23,7 @@
     </dict>
   </array>
   <key>PayloadDisplayName</key>
-  <string>Sable: SableBrowse in Chrome</string>
+  <string>Sable: SableBrowse and 1Password in Chrome</string>
   <key>PayloadIdentifier</key>
   <string>com.sable.chrome.sablebrowse</string>
   <key>PayloadScope</key>
