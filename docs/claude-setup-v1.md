@@ -17,26 +17,43 @@ step in the two-Mac checklist.
 
 ## Inputs from the bots
 
+Pick the trial type first. It decides which inputs the bots fill in and what the trial prompt
+sets up. Every Mac gets the same install; only the setup after it differs.
+
+| `TRIAL_TYPE` | Who | Setup after the install |
+|---|---|---|
+| `ds` | deployment strategist | sable-inc/deployments on the trial branch, the trial agent built and linted, `~/TRIAL_PROMPT.md`, sable CLI in the Trials org, SableBrowse |
+| `eng` | engineer | the candidate's own repo `sable-inc/<name>` (no deployments access), Anthropic and OpenAI keys in the Keychain, Vercel and Google Cloud sign-in, sable CLI in the Trials org |
+| `ae` | account exec, non-technical | apps only: Chrome, Slack and permissions. No GitHub, no repo |
+
 The Onboarding bot produces one file per trial, `trial-inputs.env`, with no secrets in it.
-Copy it to `~/trial-inputs.env` on the laptop:
+Copy it to `~/trial-inputs.env` on the laptop. Fill in only the lines for the trial's type:
 
 ```sh
+TRIAL_TYPE="ds"                        # ds | eng | ae
 TRIAL_NAME="Jane Doe"
 TRIAL_EMAIL="trial1@sable.ai"          # the slot's Google account
 TRIAL_SLOT="trial1"                    # hostname becomes sable-trial1
-TRIAL_ROLE="eng"                       # eng | ds | fde | el
+# ds and eng
 TRIAL_GITHUB_USER="<GITHUB_USER>"      # the slot's GitHub account
-TRIAL_BRANCH="trials/jane-doe"
+# ds only
+TRIAL_BRANCH="trial/jane-doe"
 AGENT_PATH="trials/partner-qualifier-jane"
 AGENT_ID="agt_..."                     # the trial agent, never a live one
+# eng only
+TRIAL_REPO="sable-inc/jane-doe"        # new, empty repo the candidate commits to on main
 ```
 
-Ask the Onboarding bot for the approved trial prompt template and save it as
-`~/trial-prompt-template.md`. Do not start the Claude step until both input files are present.
-Keep these per-trial files on the laptop, not in this public repository.
+For `ds`, also ask the Onboarding bot for the approved trial prompt template and save it as
+`~/trial-prompt-template.md`. Do not start the Claude step until the inputs for the type are
+present. Keep these per-trial files on the laptop, not in this public repository.
 
-If any value still looks like `<...>`, `agt_...`, `agt_XXXX` or `TODO`, stop and ask the Onboarding bot.
-That is what broke the Oct 25 trial.
+If any value for the chosen type still looks like `<...>`, `agt_...`, `agt_XXXX` or `TODO`,
+stop and ask the Onboarding bot. That is what broke the Oct 25 trial.
+
+GitHub access follows the type. The slot's GitHub account gets sable-inc/deployments for
+`ds`, only the candidate's own repo for `eng`, and nothing for `ae`. Remove the previous
+trial's repo access at reset.
 
 ## B only: reset first
 
@@ -58,7 +75,7 @@ with that privacy permission. Terminal.app has it; Ghostty and Orca don't by def
    ```sh
    sh <(curl --proto '=https' --tlsv1.2 -L https://nixos.org/nix/install) --daemon
    ```
-5. Install nix-config with the trial profile (replace `trial1` with the slot):
+5. Install nix-config with the trial profile, for every trial type (replace `trial1` with the slot):
    ```sh
    nix --extra-experimental-features 'nix-command flakes' run --refresh \
      github:sable-inc/nix-config#init -- --profile trial --hostname sable-trial1
@@ -84,37 +101,56 @@ with that privacy permission. Terminal.app has it; Ghostty and Orca don't by def
 
 ## The prompt (paste into `claude` in Terminal.app as is; it reads `~/trial-inputs.env`)
 
+For `ds` and `eng`, do the GitHub sign-in (step 7 above) first. For `ae`, skip it.
+
 ```
 You are finishing the setup of a Sable work-trial Mac. Nix and nix-config are already
 installed. Log each step with start and end times in ~/setup-log.md. Never print, echo,
-log or commit a token or password. You cannot type passwords or complete browser sign-ins:
-when a step needs one, tell me exactly what to do and wait.
+log or commit a token, password or API key. You cannot type passwords, keys or complete
+browser sign-ins: when a step needs one, tell me exactly what to do and wait.
 
-0. Read ~/trial-inputs.env and ~/trial-prompt-template.md. If either file is missing or empty,
-   or any input value is empty or contains "<", "XXXX", "TODO" or the agent-id placeholder "agt_...",
-   stop and tell me what is missing or wrong.
-1. Check: `id -un` is sable, `scutil --get LocalHostName` is sable-$TRIAL_SLOT,
-   `gh auth status` shows $TRIAL_GITHUB_USER with the read:packages scope, and
+0. Read ~/trial-inputs.env. TRIAL_TYPE must be ds, eng or ae; otherwise stop. Required for
+   every type: TRIAL_NAME, TRIAL_EMAIL, TRIAL_SLOT. Also required for ds: TRIAL_GITHUB_USER,
+   TRIAL_BRANCH, AGENT_PATH, AGENT_ID and a non-empty ~/trial-prompt-template.md. For eng:
+   TRIAL_GITHUB_USER, TRIAL_REPO (sable-inc/<name>). If a required value is empty or contains
+   "<", "XXXX", "TODO" or the agent-id placeholder "agt_...", stop and tell me what is missing.
+   Ignore fields the type does not use. Each step below says which types it applies to.
+1. All: check `id -un` is sable and `scutil --get LocalHostName` is sable-$TRIAL_SLOT.
+   ds, eng: `gh auth status` shows $TRIAL_GITHUB_USER with the read:packages scope, and
    `echo ${NPM_TOKEN:+set}` prints "set". If NPM_TOKEN is empty, open a new login shell.
-2. npm registry for @sable-inc (the token stays in the environment, not in the file):
+2. ds, eng: npm registry for @sable-inc (the token stays in the environment, not in the file):
    npm config set @sable-inc:registry https://npm.pkg.github.com
    npm config set '//npm.pkg.github.com/:_authToken' '${NPM_TOKEN}'
-3. sable CLI: `bun add -g @sable-inc/toolbelt`, then `sable --version` and `sable update`.
-4. `sable login --no-browser`: give me the URL it prints and tell me to open it and sign
-   in as $TRIAL_EMAIL. Then `sable switch` to the Trials org and confirm `sable whoami`
-   shows it. If the org is missing, stop: an engineer must invite $TRIAL_EMAIL to Trials.
-5. SableBrowse: `npm install -g @sable-inc/sablebrowse && sablebrowse setup`.
-6. Repo: `gh repo clone sable-inc/deployments ~/deployments`, then
+3. ds, eng: sable CLI: `bun add -g @sable-inc/toolbelt`, then `sable --version` and
+   `sable update`. `sable login --no-browser`: give me the URL it prints and tell me to open
+   it and sign in as $TRIAL_EMAIL. Then `sable switch` to the Trials org and confirm
+   `sable whoami` shows it. If the org is missing, stop: an engineer must invite $TRIAL_EMAIL.
+4. ds: SableBrowse: `npm install -g @sable-inc/sablebrowse && sablebrowse setup`.
+5. ds: repo: `gh repo clone sable-inc/deployments ~/deployments`, then
    `git -C ~/deployments checkout $TRIAL_BRANCH`. Confirm ~/deployments/$AGENT_PATH exists
    and its deployment.yaml uses $AGENT_ID. Then `sable build` and `sable lint` in that folder.
-7. Write ~/TRIAL_PROMPT.md from ~/trial-prompt-template.md, filling in the real $AGENT_PATH and
-   $AGENT_ID. No placeholders may remain.
-8. Tell me to: open Chrome, sign in as $TRIAL_EMAIL, and click "Add to Chrome" on
-   https://chromewebstore.google.com/detail/ildldnmbjlkbomodicckikcenamaabfj. Wait for me.
-9. Tell me to open System Settings > Privacy & Security and allow Microphone, Camera and
-   Screen & System Audio Recording for Chrome, Zoom and Wispr Flow. Wait for me.
-10. Run `sable-doctor --trial-dir ~/deployments/$AGENT_PATH`. Fix every FAIL you can and
-    rerun. End with the final sable-doctor output and ~/setup-log.md.
+   Write ~/TRIAL_PROMPT.md from ~/trial-prompt-template.md, filling in the real $AGENT_PATH
+   and $AGENT_ID. No placeholders may remain.
+6. eng: repo: `gh repo clone $TRIAL_REPO ~/$(basename $TRIAL_REPO)`. It may be empty; the
+   candidate commits to main. Don't clone sable-inc/deployments.
+7. eng: API keys. Tell me to run these two lines one at a time and type each key at the
+   hidden prompt (the key is stored in the login Keychain, never in a file or the shell):
+     security add-generic-password -U -a sable -s ANTHROPIC_API_KEY -w
+     security add-generic-password -U -a sable -s OPENAI_API_KEY -w
+   Then confirm both exist with `security find-generic-password -s <name> >/dev/null` (never
+   with -w). New shells export them as ANTHROPIC_API_KEY and OPENAI_API_KEY.
+8. eng: `npm install -g vercel`. Tell me to run `vercel login` and `gcloud auth login`, each
+   signing in as $TRIAL_EMAIL in the browser. Wait for me. Confirm `vercel whoami` and that
+   `gcloud auth list` shows $TRIAL_EMAIL.
+9. eng: tell me to open Cursor and sign in as $TRIAL_EMAIL. Claude Code is this session.
+10. All: tell me to open Chrome and sign in as $TRIAL_EMAIL, then open Slack and sign in as
+    $TRIAL_EMAIL. ds only: also click "Add to Chrome" on
+    https://chromewebstore.google.com/detail/ildldnmbjlkbomodicckikcenamaabfj. Wait for me.
+11. All: tell me to open System Settings > Privacy & Security and allow Microphone, Camera and
+    Screen & System Audio Recording for Chrome, Zoom and Wispr Flow. Wait for me.
+12. All: run `sable-doctor --trial-type $TRIAL_TYPE`, adding
+    `--trial-dir ~/deployments/$AGENT_PATH` for ds. Fix every FAIL you can and rerun. End
+    with the final sable-doctor output and ~/setup-log.md.
 ```
 
 ## The new-hire prompt (section C; paste into `claude` in Terminal.app as is)

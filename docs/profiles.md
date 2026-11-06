@@ -40,9 +40,12 @@ Run the Nix installer and `build-switch` from Terminal.app. On macOS 27, termina
 right privacy permission (Orca's terminal, for example) can't write `/etc/fstab`, and the Nix
 installer fails with "Operation not permitted".
 
-`sable-doctor [--trial-dir <path>]` prints PASS/FAIL per piece (apps, CLIs, gh auth and
-`read:packages`, npm registry, sable CLI and Trials org, SableBrowse and its Chrome extension,
-trial branch, `TRIAL_PROMPT.md`). Exit code is the number of FAILs. It never prints a secret.
+`sable-doctor [--trial-type ds|eng|ae] [--trial-dir <path>]` prints PASS/FAIL per piece (apps,
+CLIs, gh auth and `read:packages`, npm registry, sable CLI and Trials org, SableBrowse and its
+Chrome extension; for `ds` the deployments trial branch and `TRIAL_PROMPT.md`; for `eng` the
+candidate's repo, API keys in the Keychain, Vercel and gcloud sign-in). An `ae` trial checks
+only the machine, apps and CLIs. On a trial Mac the type defaults to `TRIAL_TYPE` in
+`~/trial-inputs.env`. Exit code is the number of FAILs. It never prints a secret.
 
 `@sable-inc` packages come from GitHub Packages. The profile exports
 `NPM_TOKEN="$(gh auth token)"`, and `~/.npmrc` refers to it:

@@ -81,8 +81,10 @@ Not in Apple Business:
 Then, either way:
 
 3. Wait until the bootstrap script passes on the device page (45 to 90 minutes on a fresh Mac; the first run downloads and builds everything)
-4. Trial: put `~/trial-inputs.env` and the approved `~/trial-prompt-template.md` on the Mac
-   as described in `docs/claude-setup-v1.md`, then continue at step 7 (GitHub sign-in).
+4. Trial: pick the trial type (`ds`, `eng` or `ae`), then put `~/trial-inputs.env` on the
+   Mac, plus the approved `~/trial-prompt-template.md` for `ds`, as described in
+   `docs/claude-setup-v1.md`. For `ds` and `eng`, continue at step 7 (GitHub sign-in); for
+   `ae`, go straight to the trial prompt.
    New hire: on their first day, they open Terminal.app, run `claude` and paste the new-hire
    prompt from `docs/claude-setup-v1.md` (section C)
 
@@ -95,10 +97,9 @@ bootstrap if later steps need sudo after the grant expires.
 
 ## Non-technical trials
 
-No Nix and no Vercel. Create a second blueprint, **Sable Trial (non-technical)**, with the
-Device Name item, the Chrome profile, and Iru Auto Apps instead of the bootstrap: Google
-Chrome, Slack, Zoom, Claude, Cursor, ChatGPT, Notion, Granola and Wispr Flow. Skip
-`docs/claude-setup-v1.md`; the trialer signs in with Google.
+AE and other non-technical trials use a normal Sable Trial Mac with `TRIAL_TYPE="ae"`: the
+trial prompt then sets up only Chrome, Slack and permissions. A lighter blueprint without Nix
+(Iru Auto Apps instead of the bootstrap) is possible but not built.
 
 ## Reset
 

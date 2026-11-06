@@ -64,6 +64,13 @@ in
       ];
     })
     (lib.mkIf (profile == "trial") {
+      # Eng trials store their API keys in the login Keychain (docs/claude-setup-v1.md).
+      home-manager.users.${user}.programs.zsh.initContent = ''
+        for key in ANTHROPIC_API_KEY OPENAI_API_KEY; do
+          value="$(security find-generic-password -a sable -s "$key" -w 2>/dev/null)" && export "$key=$value"
+        done
+        unset key value
+      '';
       # Trial laptops are wiped after every trial: the new-hire dock without Spotify or Linear.
       system.defaults.dock.persistent-apps = lib.mkForce [
         "/Applications/Google Chrome.app"
