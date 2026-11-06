@@ -1,6 +1,7 @@
 # sable-doctor: PASS/FAIL for every piece a Sable trial or onboard laptop needs.
-# Usage: sable-doctor [--trial-type ds|eng|ae] [--trial-dir ~/deployments/trials/<agent>-<first>]
-# On a trial Mac the type defaults to TRIAL_TYPE in ~/trial-inputs.env.
+# shellcheck disable=SC2088 # "~/..." strings are messages, not paths
+# Usage: sable-doctor [--trial-dir ~/deployments/trials/<agent>-<first>]
+# On a trial Mac it checks the access listed in ~/trial-inputs.env (see sable-setup).
 # Exit code = number of FAILs. Never prints secret values.
 pass=0; fail=0; warn=0
 ok()   { printf '\033[1;32mPASS\033[0m  %s\n' "$1"; pass=$((pass+1)); }
@@ -14,34 +15,25 @@ check() { # check <label> <fix> <command...>
 
 inputs="$HOME/trial-inputs.env"
 input() { sed -n "s/^$1=\"\{0,1\}\([^\"]*\)\"\{0,1\}.*/\1/p" "$inputs" 2>/dev/null | head -1; }
-trial_dir=""; trial_type=""
+trial_dir=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --trial-dir|--trial-type) [ "$#" -ge 2 ] || { echo "missing value for $1" >&2; exit 64; } ;;
+    --trial-dir) [ "$#" -ge 2 ] || { echo "missing value for $1" >&2; exit 64; }; trial_dir="$2"; shift 2 ;;
     *) echo "unknown argument: $1" >&2; exit 64 ;;
   esac
-  case "$1" in
-    --trial-dir) trial_dir="$2" ;;
-    --trial-type) trial_type="$2" ;;
-  esac
-  shift 2
 done
 profile_file=/etc/nix-darwin/local.nix
 profile=$(grep -o 'sable.profile *= *"[a-z]*"' "$profile_file" 2>/dev/null | grep -o '"[a-z]*"' | tr -d '"')
-[ "$profile" = trial ] && [ -z "$trial_type" ] && trial_type=$(input TRIAL_TYPE)
-case "$profile:$trial_type" in
-  trial:ds|trial:eng|trial:ae|*:) ;;
-  trial:*) echo "trial type must be ds, eng or ae (got '$trial_type')" >&2; exit 64 ;;
-  *) echo "--trial-type only applies to trial Macs (profile=${profile:-default})" >&2; exit 64 ;;
-esac
-# What each kind of Mac needs: GitHub + npm, the sable CLI, SableBrowse.
-needs_github=1; needs_sable=1; needs_browse=1
-case "$trial_type" in
-  eng) needs_browse=0 ;;
-  ae) needs_github=0; needs_sable=0; needs_browse=0 ;;
-esac
-echo "sable-doctor  profile=${profile:-default}${trial_type:+  trial=$trial_type}  host=$(scutil --get LocalHostName 2>/dev/null || hostname)"
-[ "$profile" = trial ] && [ -z "$trial_type" ] && bad "trial type known" "set TRIAL_TYPE in ~/trial-inputs.env or pass --trial-type ds|eng|ae"
+# Trial Macs need only the access grokbot listed; other Macs need the GitHub and Sable tools.
+email=""; repos=""; agent_path=""; api_keys=""; vercel=""; gcp=""; technical=1
+if [ "$profile" = trial ]; then
+  email=$(input TRIAL_EMAIL); repos=$(input REPOS); agent_path=$(input AGENT_PATH)
+  api_keys=$(input API_KEYS); vercel=$(input VERCEL); gcp=$(input GCP)
+  [ -n "$(input TRIAL_GITHUB_USER)" ] || technical=0
+  [ -n "$agent_path" ] && [ -z "$trial_dir" ] && trial_dir="$HOME/deployments/$agent_path"
+fi
+echo "sable-doctor  profile=${profile:-default}  host=$(scutil --get LocalHostName 2>/dev/null || hostname)"
+[ "$profile" = trial ] && [ ! -s "$inputs" ] && bad "~/trial-inputs.env present" "ask the Onboarding bot for it"
 echo
 
 echo "== machine"
@@ -51,10 +43,13 @@ check "nix-darwin switched" "cd /etc/nix-darwin && nix run path:.#build-switch" 
 check "Homebrew" "rerun build-switch" brew --version
 
 echo "== apps"
-for app in "Google Chrome" Claude ChatGPT zoom.us "Wispr Flow" Ghostty OrbStack Notion 1Password Granola; do
+for app in "Google Chrome" Claude ChatGPT zoom.us "Wispr Flow" Ghostty OrbStack Notion 1Password Granola Linear Orca; do
   check "$app.app" "rerun build-switch" test -d "/Applications/$app.app"
 done
-[ "$profile" = onboard ] && check "Linear.app" "rerun build-switch" test -d /Applications/Linear.app
+[ "$profile" = onboard ] && check "Loom.app" "rerun build-switch" test -d /Applications/Loom.app
+if [ "$profile" = trial ]; then
+  for app in Figma Canva; do check "$app.app" "rerun build-switch" test -d "/Applications/$app.app"; done
+fi
 for app in Slack Cursor; do
   if [ -d "/Applications/Nix Apps/$app.app" ] || [ -d "$HOME/Applications/Home Manager Apps/$app.app" ]; then ok "$app.app"; else bad "$app.app" "rerun build-switch"; fi
 done
@@ -64,7 +59,7 @@ for c in git gh node pnpm uv doppler claude codex lk; do
   check "$c" "rerun build-switch" have "$c"
 done
 
-if [ "$needs_github" = 1 ]; then
+if [ "$technical" = 1 ]; then
 echo "== GitHub + npm"
 check "gh auth status" "gh auth login --web" gh auth status
 check "gh token can read packages" "gh auth refresh -s read:packages" sh -c "gh auth status 2>&1 | grep -q read:packages"
@@ -74,7 +69,7 @@ check "@sable-inc registry in ~/.npmrc" "npm config set @sable-inc:registry http
 check "npm auth reads NPM_TOKEN" "npm config set '//npm.pkg.github.com/:_authToken' '\${NPM_TOKEN}'" grep -q 'npm.pkg.github.com/:_authToken=${NPM_TOKEN}' "$HOME/.npmrc"
 fi
 
-if [ "$needs_sable" = 1 ]; then
+if [ "$technical" = 1 ]; then
 echo "== Sable tools"
 if have sable; then
   ok "sable CLI installed ($(sable --version 2>/dev/null | head -1))"
@@ -84,7 +79,7 @@ if have sable; then
   else note "sable whoami does not mention Trials (fine outside a trial)"; fi
 else bad "sable CLI" "bun add -g @sable-inc/toolbelt"; fi
 fi
-if [ "$needs_browse" = 1 ]; then
+if [ "$technical" = 1 ]; then
 if have sablebrowse; then
   ok "SableBrowse installed"
   check "sablebrowse doctor" "sablebrowse setup" sablebrowse doctor
@@ -92,40 +87,38 @@ else bad "SableBrowse" "npm install -g @sable-inc/sablebrowse && sablebrowse set
 if ls -d "$HOME"/Library/Application\ Support/Google/Chrome/*/Extensions/ildldnmbjlkbomodicckikcenamaabfj >/dev/null 2>&1; then ok "SableBrowse Chrome extension"; else bad "SableBrowse Chrome extension" "install ildldnmbjlkbomodicckikcenamaabfj from the Chrome Web Store"; fi
 fi
 
-if [ -n "$trial_dir" ] || [ "$trial_type" = ds ]; then
-  echo "== trial repo"
-  repo="$HOME/deployments"
-  check "deployments repo cloned" "gh repo clone sable-inc/deployments ~/deployments" test -d "$repo/.git"
-  br=$(git -C "$repo" branch --show-current 2>/dev/null)
-  case "$br" in trial/*|trials/*) ok "on trial branch ($br)";; *) bad "on trial branch (now: ${br:-none})" "git -C ~/deployments checkout <trial branch>";; esac
-  if [ -n "$trial_dir" ]; then
-    check "trial folder exists" "check the agent path in TRIAL_PROMPT.md" test -d "$trial_dir"
-    if have sable && [ -d "$trial_dir" ]; then
-      check "sable build" "cd $trial_dir && sable build" sh -c "cd '$trial_dir' && sable build"
-      check "sable lint" "cd $trial_dir && sable lint" sh -c "cd '$trial_dir' && sable lint"
-    fi
+for spec in $repos; do
+  repo="${spec%@*}"; branch=""; [ "$spec" != "$repo" ] && branch="${spec#*@}"; dir="$HOME/${repo##*/}"
+  [ -n "${printed_repos:-}" ] || { echo "== repos"; printed_repos=1; }
+  check "$repo cloned to ~/${repo##*/}" "sable-setup" sh -c "git -C '$dir' remote get-url origin | grep -q '$repo'"
+  [ -z "$branch" ] || check "~/${repo##*/} on $branch" "git -C $dir checkout $branch" test "$(git -C "$dir" branch --show-current 2>/dev/null)" = "$branch"
+done
+
+if [ -n "$trial_dir" ]; then
+  echo "== trial agent"
+  check "trial folder exists" "check AGENT_PATH in ~/trial-inputs.env" test -d "$trial_dir"
+  if have sable && [ -d "$trial_dir" ]; then
+    check "sable build" "cd $trial_dir && sable build" sh -c "cd '$trial_dir' && sable build"
+    check "sable lint" "cd $trial_dir && sable lint" sh -c "cd '$trial_dir' && sable lint"
   fi
   if [ -f "$HOME/TRIAL_PROMPT.md" ]; then
-    if grep -Eq 'agt_X{4,}|agt_\.\.\.|<[A-Z_]+>|TODO' "$HOME/TRIAL_PROMPT.md"; then bad "TRIAL_PROMPT.md has no placeholders" "fill in the real agent path and agent id"
+    if grep -Eq 'agt_X{4,}|agt_\.\.\.|<[A-Z_]+>|\{\{[A-Z_]+\}\}|TODO' "$HOME/TRIAL_PROMPT.md"; then bad "TRIAL_PROMPT.md has no placeholders" "sable-setup"
     else ok "TRIAL_PROMPT.md filled in"; fi
-  else bad "TRIAL_PROMPT.md" "write ~/TRIAL_PROMPT.md with the real agent path and id"; fi
+  else bad "TRIAL_PROMPT.md" "sable-setup"; fi
 fi
 
-if [ "$trial_type" = eng ]; then
-  echo "== eng trial"
-  trial_repo=$(input TRIAL_REPO)
-  if [ -n "$trial_repo" ]; then
-    dir="$HOME/${trial_repo##*/}"
-    check "$trial_repo cloned to ~/${trial_repo##*/}" "gh repo clone $trial_repo $dir" sh -c "git -C '$dir' remote get-url origin | grep -q '$trial_repo'"
-  else bad "TRIAL_REPO in ~/trial-inputs.env" "ask the Onboarding bot for the candidate's repo (sable-inc/<name>)"; fi
-  if [ -d "$HOME/deployments" ]; then bad "no sable-inc/deployments clone" "eng trials don't get deployments: rm -rf ~/deployments"; else ok "no sable-inc/deployments clone"; fi
-  for key in ANTHROPIC_API_KEY OPENAI_API_KEY; do
-    check "$key in the Keychain (value not shown)" "security add-generic-password -U -a sable -s $key -w" security find-generic-password -a sable -s "$key"
-  done
-  check "vercel CLI" "npm install -g vercel" have vercel
-  check "vercel signed in" "vercel login" vercel whoami
-  trial_email=$(input TRIAL_EMAIL)
-  check "gcloud active account is ${trial_email:-TRIAL_EMAIL}" "gcloud auth login $trial_email" sh -c "[ -n '$trial_email' ] && gcloud auth list --filter=status:ACTIVE --format='value(account)' 2>/dev/null | grep -qxF '$trial_email'"
+if [ "$profile" = trial ] && [ -n "$api_keys$vercel$gcp" ]; then
+  echo "== trial access"
+  if [ "$api_keys" = yes ]; then
+    for key in ANTHROPIC_API_KEY OPENAI_API_KEY; do
+      check "$key in the Keychain (value not shown)" "sable-setup" security find-generic-password -a sable -s "$key"
+    done
+  fi
+  if [ "$vercel" = yes ]; then
+    check "vercel CLI" "npm install -g vercel" have vercel
+    check "vercel signed in" "vercel login" vercel whoami
+  fi
+  [ "$gcp" = yes ] && check "gcloud active account is $email" "gcloud auth login $email" sh -c "gcloud auth list --filter=status:ACTIVE --format='value(account)' 2>/dev/null | grep -qxF '$email'"
 fi
 
 echo "== privacy permissions (check by hand if unsure)"

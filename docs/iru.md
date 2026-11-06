@@ -81,12 +81,11 @@ Not in Apple Business:
 Then, either way:
 
 3. Wait until the bootstrap script passes on the device page (45 to 90 minutes on a fresh Mac; the first run downloads and builds everything)
-4. Trial: pick the trial type (`ds`, `eng` or `ae`), then put `~/trial-inputs.env` on the
-   Mac, plus the approved `~/trial-prompt-template.md` for `ds`, as described in
-   `docs/claude-setup-v1.md`. For `ds` and `eng`, continue at step 7 (GitHub sign-in); for
-   `ae`, go straight to the trial prompt.
-   New hire: on their first day, they open Terminal.app, run `claude` and paste the new-hire
-   prompt from `docs/claude-setup-v1.md` (section C)
+4. Trial: put `~/trial-inputs.env` on the Mac (plus `~/trial-prompt-template.md` when it lists
+   an agent), then follow step 7 of `docs/claude-setup-v1.md`: app sign-ins, and `sable-setup`
+   for every role except EL, AE and Marketing.
+   New hire: on their first day, they sign in to their apps and run `sable-setup`
+   (`docs/claude-setup-v1.md`, section C)
 
 The bootstrap log is also on the Mac at `/var/log/sable-bootstrap.log`.
 
@@ -97,9 +96,9 @@ bootstrap if later steps need sudo after the grant expires.
 
 ## Non-technical trials
 
-AE and other non-technical trials use a normal Sable Trial Mac with `TRIAL_TYPE="ae"`: the
-trial prompt then sets up only Chrome, Slack and permissions. A lighter blueprint without Nix
-(Iru Auto Apps instead of the bootstrap) is possible but not built.
+EL, AE and Marketing trials use a normal Sable Trial Mac with no GitHub or other access in
+`trial-inputs.env`: they only sign in to the apps. A lighter blueprint without Nix (Iru Auto
+Apps instead of the bootstrap) is possible but not built.
 
 ## Reset
 

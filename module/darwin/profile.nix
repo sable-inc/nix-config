@@ -12,6 +12,7 @@
 let
   profile = config.sable.profile;
   sableDoctor = pkgs.writeShellScriptBin "sable-doctor" (builtins.readFile ./bin/sable-doctor);
+  sableSetup = pkgs.writeShellScriptBin "sable-setup" (builtins.readFile ./bin/sable-setup);
 in
 {
   options.sable.profile = lib.mkOption {
@@ -26,8 +27,43 @@ in
 
   config = lib.mkMerge [
     (lib.mkIf (profile != "default") {
-      environment.systemPackages = [ sableDoctor ];
-      homebrew.casks = [ "notion" "1password" "granola" ];
+      environment.systemPackages = [
+        sableDoctor
+        sableSetup
+      ];
+      homebrew.casks = [
+        "notion"
+        "1password"
+        "granola"
+        "linear"
+      ];
+      # New hires and trial candidates get the same work apps in the dock, except Loom (new
+      # hires) and Figma and Canva (trials).
+      system.defaults.dock.persistent-apps = lib.mkForce ([
+        "/Applications/Google Chrome.app"
+        "/Applications/Nix Apps/Spotify.app"
+        "/Applications/Nix Apps/Slack.app"
+        "/Applications/zoom.us.app"
+        "/Applications/Granola.app"
+        "/System/Applications/Notes.app"
+        "/Applications/Claude.app"
+        "/Applications/ChatGPT.app"
+        "/Applications/Linear.app"
+        "/Applications/Notion.app"
+      ]
+      ++ lib.optional (profile == "onboard") "/Applications/Loom.app"
+      ++ lib.optionals (profile == "trial") [
+        "/Applications/Figma.app"
+        "/Applications/Canva.app"
+      ]
+      ++ [
+        "/Applications/Wispr Flow.app"
+        "/Applications/1Password.app"
+        "/Applications/Orca.app"
+        "/System/Applications/Utilities/Terminal.app/"
+        "${config.users.users.${user}.home}/Applications/Home Manager Apps/Cursor.app"
+        "/System/Applications/System Settings.app"
+      ]);
       home-manager.users.${user} = {
         # Nix's node lives in the read-only store, so npm and bun globals go under $HOME.
         home.sessionVariables.NPM_CONFIG_PREFIX = "$HOME/.npm-global";
@@ -42,52 +78,20 @@ in
       };
     })
     (lib.mkIf (profile == "onboard") {
-      homebrew.casks = [ "linear" ];
-      # New hires get the work apps in the dock, not only the default set.
-      system.defaults.dock.persistent-apps = lib.mkForce [
-        "/Applications/Google Chrome.app"
-        "/Applications/Nix Apps/Spotify.app"
-        "/Applications/Nix Apps/Slack.app"
-        "/Applications/zoom.us.app"
-        "/Applications/Granola.app"
-        "/System/Applications/Notes.app"
-        "/Applications/Claude.app"
-        "/Applications/ChatGPT.app"
-        "/Applications/Linear.app"
-        "/Applications/Notion.app"
-        "/Applications/Wispr Flow.app"
-        "/Applications/1Password.app"
-        "/Applications/Orca.app"
-        "/System/Applications/Utilities/Terminal.app/"
-        "${config.users.users.${user}.home}/Applications/Home Manager Apps/Cursor.app"
-        "/System/Applications/System Settings.app"
-      ];
+      homebrew.casks = [ "loom" ];
     })
     (lib.mkIf (profile == "trial") {
-      # Eng trials store their API keys in the login Keychain (docs/claude-setup-v1.md).
+      homebrew.casks = [
+        "figma"
+        "canva"
+      ];
+      # sable-setup stores trial API keys in the login Keychain; new shells export them.
       home-manager.users.${user}.programs.zsh.initContent = ''
         for key in ANTHROPIC_API_KEY OPENAI_API_KEY; do
           value="$(security find-generic-password -a sable -s "$key" -w 2>/dev/null)" && export "$key=$value"
         done
         unset key value
       '';
-      # Trial laptops are wiped after every trial: the new-hire dock without Spotify or Linear.
-      system.defaults.dock.persistent-apps = lib.mkForce [
-        "/Applications/Google Chrome.app"
-        "/Applications/Nix Apps/Slack.app"
-        "/Applications/zoom.us.app"
-        "/Applications/Granola.app"
-        "/System/Applications/Notes.app"
-        "/Applications/Claude.app"
-        "/Applications/ChatGPT.app"
-        "/Applications/Notion.app"
-        "/Applications/Wispr Flow.app"
-        "/Applications/1Password.app"
-        "/Applications/Orca.app"
-        "/System/Applications/Utilities/Terminal.app/"
-        "${config.users.users.${user}.home}/Applications/Home Manager Apps/Cursor.app"
-        "/System/Applications/System Settings.app"
-      ];
     })
   ];
 }
