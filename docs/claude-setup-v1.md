@@ -124,6 +124,8 @@ After Iru's install (or hand steps 1-6 with `--profile onboard`):
    their 1Password invite)
 3. Once their GitHub account is in sable-inc, they run `sable-setup` in Terminal.app. It does
    the same as on a trial Mac, with the main Sable org instead of Trials and no inputs file
+4. After their first week, move the Mac to Default Blueprint in Iru (`docs/iru.md`, "New hires
+   after week one"), so automatic updates never reset their own setup
 
 ## After
 
