@@ -1,11 +1,13 @@
 #!/bin/bash
 # Unattended first run on a fresh Mac, run as root (an Iru custom script, or sudo).
 # Each step checks its own end state first, so a rerun after a failure resumes.
+# --update (Iru, daily): on an installed Mac, pull nix-config and rebuild only if main changed.
 set -euo pipefail
 
 profile="trial"
 host_name=""
 ref="main"
+update=0
 user="sable"
 nix_bin="/nix/var/nix/profiles/default/bin"
 sudoers_file="/etc/sudoers.d/zz-sable-bootstrap"
@@ -15,6 +17,7 @@ log() { printf '%s sable-bootstrap: %s\n' "$(date -u +%FT%TZ)" "$*"; }
 die() { log "FAIL: $*"; exit 1; }
 
 while [ "$#" -gt 0 ]; do
+  if [ "$1" = --update ]; then update=1; shift; continue; fi
   [ "$#" -ge 2 ] || die "missing value for $1"
   case "$1" in
     --profile) profile="$2" ;;
@@ -32,6 +35,22 @@ exec > >(tee -a "$log_file") 2>&1
 rm -f "$sudoers_file"
 [ "$(uname -m)" = "arm64" ] || die "Apple silicon only"
 id "$user" >/dev/null 2>&1 || die "user $user does not exist; create it in Setup Assistant or with Iru first"
+local_nix=/etc/nix-darwin/local.nix
+if [ "$update" = 1 ]; then
+  # Before the first install finishes there is nothing to update; the bootstrap item does that.
+  [ -f "$local_nix" ] && [ -L /run/current-system ] || { log "update: not installed yet, skipping"; exit 0; }
+  [ "$(stat -f %Su /dev/console)" = "$user" ] || { log "update: $user is not logged in, skipping"; exit 0; }
+  profile="$(sed -n 's/^[[:space:]]*sable\.profile = "\([a-z]*\)";.*/\1/p' "$local_nix")"
+  host_name="$(sed -n 's/^[[:space:]]*networking\.hostName = "\([^"]*\)";.*/\1/p' "$local_nix")"
+fi
+# One run at a time: the first install and the daily update never build together.
+lock_dir=/var/run/sable-bootstrap.lock
+if ! mkdir "$lock_dir" 2>/dev/null; then
+  log "another run is in progress"
+  [ "$update" = 1 ] && exit 0
+  exit 1
+fi
+trap 'rmdir "$lock_dir" 2>/dev/null' EXIT
 # Iru's Device Name item may set HostName before LocalHostName, so take the first sable- name.
 sable_name() {
   local key name
@@ -59,7 +78,7 @@ case "$host_name" in
 esac
 
 # The Nix installer, init and build-switch call sudo as $user; this drop-in is removed on exit.
-trap 'rm -f "$sudoers_file"' EXIT
+trap 'rm -f "$sudoers_file"; rmdir "$lock_dir" 2>/dev/null' EXIT
 trap 'exit 1' HUP INT TERM
 # Sudo enforces expiry even after SIGKILL or reboot, when cleanup traps cannot run.
 sudo_expires_at="$(date -u -v+2H +%Y%m%d%H%M%SZ)"
@@ -104,7 +123,6 @@ else
   nix_works || die "nix did not install"
 fi
 
-local_nix=/etc/nix-darwin/local.nix
 if [ -f "$local_nix" ]; then
   if ! grep -Eq "^[[:space:]]*sable\.profile = \"$profile\";" "$local_nix" ||
     ! grep -Eq "^[[:space:]]*networking\.hostName = \"$host_name\";" "$local_nix"; then
@@ -130,9 +148,18 @@ if [ "$console_user" != "$user" ]; then
   exit 1
 fi
 
-log "build-switch: running"
 cd /etc/nix-darwin
+# The last nix-config commit that built and switched; a failed build is retried next run.
+built_file=/var/db/sable-nix-config-built
+as_user git pull --ff-only --quiet || die "could not update /etc/nix-darwin (local changes?); fix by hand with git status there"
+head="$(as_user git rev-parse HEAD)"
+if [ "$update" = 1 ] && [ "$(cat "$built_file" 2>/dev/null)" = "$head" ]; then
+  log "update: already built ${head:0:7}, nothing to do"
+  exit 0
+fi
+log "build-switch: running (${head:0:7})"
 as_user nix --extra-experimental-features 'nix-command flakes' run path:/etc/nix-darwin#build-switch
 [ -L /run/current-system ] || die "no system generation after build-switch"
+printf '%s\n' "$head" > "$built_file"
 
 log "done; sign-ins (GitHub, Google, Claude) are next, by hand"

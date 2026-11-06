@@ -26,6 +26,7 @@ Sable Onboard and Sable Trial each get these items (done Nov 5, 2026):
 | Custom Profile | upload; installs the SableBrowse and 1Password Chrome extensions | `mdm/chrome-sablebrowse.mobileconfig` |
 | Custom Script | run once per device; paste the file with `profile` set for the blueprint | `mdm/iru-bootstrap.sh` |
 | Custom Script | run daily; paste the file | `mdm/iru-doctor.sh` |
+| Custom Script | run daily; paste the file (same for both blueprints) | `mdm/iru-update.sh` |
 | Automated Device Enrollment | Mac: "Skip all screens", auto-advance (needs Ethernet), primary account "Skip", provision local admin `sable` (password in the vault), made the MDM-enabled user | |
 
 The bootstrap is one library item per blueprint, because `profile` differs. The other items
@@ -34,6 +35,14 @@ bootstrap item for one with the right `profile`.
 
 `iru-bootstrap.sh` downloads `target/aarch64-darwin/bootstrap` from `main`. To test a branch,
 set `ref` in the pasted script to it, and set it back to `main` afterwards.
+
+`iru-update.sh` keeps installed Macs on the latest `main`, so nobody runs build-switch by
+hand. Each day, while `sable` is logged in, it pulls `/etc/nix-darwin` and rebuilds only if
+`main` changed since the last successful build (a failed build is retried the next day). A
+rebuild upgrades Homebrew apps and removes Homebrew apps that nix-config doesn't list, so merge
+app changes outside trial days when that matters. It skips Macs whose first install hasn't
+finished, and never runs at the same time as the bootstrap. To update a Mac now, run the item
+from its device page in Iru.
 
 All three blueprints carry Sable's security settings (disk encryption, screen lock, OS
 updates); add the same to any new blueprint, such as **Sable Trial (non-technical)**. The
