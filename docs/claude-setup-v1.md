@@ -21,7 +21,7 @@ the candidate's role, and `sable-setup` sets up exactly that access and nothing 
 | Role | The bots grant | `trial-inputs.env` lines |
 |---|---|---|
 | DS | sable-inc/deployments (trial branch), the trial agent, Trials org | `TRIAL_GITHUB_USER`, `REPOS="sable-inc/deployments@trial/<first>-<last>"`, `AGENT_PATH`, `AGENT_ID` |
-| Eng, FDE | their own new repo `sable-inc/<name>`, Anthropic and OpenAI keys, Vercel, GCP, Trials org | `TRIAL_GITHUB_USER`, `REPOS="sable-inc/<name>"`, `API_KEYS="yes"`, `VERCEL="yes"`, `GCP="yes"` |
+| Eng, FDE | their own new repo `sable-inc/<name>`, Vercel, GCP, Trials org | `TRIAL_GITHUB_USER`, `REPOS="sable-inc/<name>"`, `VERCEL="yes"`, `GCP="yes"` |
 | Design | repos to be decided (deployments for now), Trials org | `TRIAL_GITHUB_USER`, `REPOS` |
 | Security | read-only GCP on the project under review, Trust Center, repos to be decided, Trials org | `TRIAL_GITHUB_USER`, `REPOS`, `GCP="yes"` |
 | EL, AE, Marketing | Trials org on the web (no repos or CLI) | none |
@@ -51,13 +51,15 @@ An Eng or FDE trial replaces the last three lines with:
 
 ```sh
 REPOS="sable-inc/jane-doe"
-API_KEYS="yes"                         # Anthropic and OpenAI keys, typed in by a person
 VERCEL="yes"
 GCP="yes"                              # gcloud signed in as TRIAL_EMAIL
 ```
 
-`sable-setup` stores the API keys in the login Keychain, never in a file or shell history.
-New shells on the trial Mac export them as `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`.
+Trials get no API keys by default: Claude Code runs on the slot's Claude seat, and the slot
+accounts are in Sable's Anthropic and OpenAI organizations, so a candidate who needs a key makes
+one there. Adding `API_KEYS="yes"` makes `sable-setup` ask for both keys and store them in the
+login Keychain, never in a file or shell history; new shells export them as
+`ANTHROPIC_API_KEY` and `OPENAI_API_KEY`.
 
 With `AGENT_PATH`, `sable-setup` also downloads the approved trial prompt template
 (`<slot>/trial-prompt-template.md`, or `trial-prompt-template.md` at the top of the repo) and
