@@ -171,7 +171,7 @@ if [ "$update" = 1 ] && [ "$(cat "$built_file" 2>/dev/null)" = "$head" ]; then
   exit 0
 fi
 log "build-switch: running (${head:0:7})"
-as_user nix --extra-experimental-features 'nix-command flakes' run path:/etc/nix-darwin#build-switch
+as_user nix --extra-experimental-features 'nix-command flakes' run path:.#build-switch
 [ -L /run/current-system ] || die "no system generation after build-switch"
 printf '%s\n' "$head" > "$built_file"
 
