@@ -17,10 +17,14 @@ input() { sed -n "s/^$1=\"\{0,1\}\([^\"]*\)\"\{0,1\}.*/\1/p" "$inputs" 2>/dev/nu
 trial_dir=""; trial_type=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --trial-dir) trial_dir="${2:-}"; shift 2 ;;
-    --trial-type) trial_type="${2:-}"; shift 2 ;;
+    --trial-dir|--trial-type) [ "$#" -ge 2 ] || { echo "missing value for $1" >&2; exit 64; } ;;
     *) echo "unknown argument: $1" >&2; exit 64 ;;
   esac
+  case "$1" in
+    --trial-dir) trial_dir="$2" ;;
+    --trial-type) trial_type="$2" ;;
+  esac
+  shift 2
 done
 profile_file=/etc/nix-darwin/local.nix
 profile=$(grep -o 'sable.profile *= *"[a-z]*"' "$profile_file" 2>/dev/null | grep -o '"[a-z]*"' | tr -d '"')
@@ -120,7 +124,8 @@ if [ "$trial_type" = eng ]; then
   done
   check "vercel CLI" "npm install -g vercel" have vercel
   check "vercel signed in" "vercel login" vercel whoami
-  check "gcloud signed in" "gcloud auth login" sh -c "gcloud auth list --format='value(account)' 2>/dev/null | grep -q ."
+  trial_email=$(input TRIAL_EMAIL)
+  check "gcloud active account is ${trial_email:-TRIAL_EMAIL}" "gcloud auth login $trial_email" sh -c "[ -n '$trial_email' ] && gcloud auth list --filter=status:ACTIVE --format='value(account)' 2>/dev/null | grep -qxF '$trial_email'"
 fi
 
 echo "== privacy permissions (check by hand if unsure)"
