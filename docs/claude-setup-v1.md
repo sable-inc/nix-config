@@ -116,10 +116,13 @@ output.
 
 After Iru's install (or hand steps 1-6 with `--profile onboard`):
 
-1. The hire signs in to each app with their @sable.ai Google account: Chrome, Slack, Zoom,
+1. The hire changes the `sable` password to their own: System Settings > Users & Groups.
+   The Mac starts with the setup password from Sable's vault, which others know. The new
+   password is also the one that unlocks the disk at startup; the hire keeps it to themselves
+2. The hire signs in to each app with their @sable.ai Google account: Chrome, Slack, Zoom,
    Granola, Claude, ChatGPT, Linear, Notion, Loom, Wispr Flow, Cursor, and 1Password (needs
    their 1Password invite)
-2. Once their GitHub account is in sable-inc, they run `sable-setup` in Terminal.app. It does
+3. Once their GitHub account is in sable-inc, they run `sable-setup` in Terminal.app. It does
    the same as on a trial Mac, with the main Sable org instead of Trials and no inputs file
 
 ## After
@@ -129,7 +132,7 @@ that needed a human is a gap for v2 (Iru) or the final version (Doppler) to remo
 
 ## Open items (owner in brackets)
 
-- `<GITHUB_USER>` per trial slot, and whether trial users stay org members, which lets them
-  read every internal repo (Leon, Marcos)
+- Whether trial slot accounts become sable-inc members again, which would let them read every
+  internal repo; today they are outside collaborators (Leon, Marcos)
 - Trials org invite for each trial email (eng)
 - Dedicated trial repos instead of branches on `deployments` (Leon, Ita)

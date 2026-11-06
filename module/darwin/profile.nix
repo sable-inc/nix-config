@@ -37,6 +37,9 @@ in
         "granola"
         "linear"
       ];
+      # Shown on the login and lock screen, so identical-looking Macs can be told apart.
+      system.defaults.loginwindow.LoginwindowText =
+        lib.mkIf (config.networking.hostName != "darwin") config.networking.hostName;
       # New hires and trial candidates get the same work apps in the dock, except Loom (new
       # hires) and Figma and Canva (trials).
       system.defaults.dock.persistent-apps = lib.mkForce ([
