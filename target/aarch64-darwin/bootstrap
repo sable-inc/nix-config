@@ -53,9 +53,17 @@ if ! ln -s "$$" "$lock" 2>/dev/null; then
     [ "$update" = 1 ] && exit 0
     exit 1
   fi
-  log "reclaiming a lock left by an interrupted run (pid ${owner:-unknown})"
-  rm -f "$lock"
-  ln -s "$$" "$lock" 2>/dev/null || { log "another run took the lock first"; [ "$update" = 1 ] && exit 0; exit 1; }
+  # Only one run reclaims, and only the dead owner's lock, so two reclaimers can't both win.
+  got=1
+  if mkdir "$lock.reclaim" 2>/dev/null; then
+    if [ "$(readlink "$lock" 2>/dev/null || true)" = "$owner" ]; then
+      log "reclaiming a lock left by an interrupted run (pid ${owner:-unknown})"
+      rm -f "$lock"
+    fi
+    ln -s "$$" "$lock" 2>/dev/null && got=0
+    rmdir "$lock.reclaim"
+  fi
+  [ "$got" = 0 ] || { log "another run holds the lock"; [ "$update" = 1 ] && exit 0; exit 1; }
 fi
 trap 'rm -f "$lock"' EXIT
 # Only the lock holder touches the sudo grant, so a skipped run can't revoke an active one.
