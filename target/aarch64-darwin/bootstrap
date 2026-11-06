@@ -33,15 +33,25 @@ rm -f "$sudoers_file"
 [ "$(uname -m)" = "arm64" ] || die "Apple silicon only"
 id "$user" >/dev/null 2>&1 || die "user $user does not exist; create it in Setup Assistant or with Iru first"
 # Iru's Device Name item may set HostName before LocalHostName, so take the first sable- name.
-if [ -z "$host_name" ]; then
-  for key in LocalHostName HostName; do
+sable_name() {
+  local key name
+  for key in LocalHostName HostName ComputerName; do
     name="$(scutil --get "$key" 2>/dev/null || true)"
     name="${name%%.*}"
     case "$name" in
-      sable-*) host_name="$name"; break ;;
+      sable-*) printf '%s' "$name"; return 0 ;;
     esac
-    host_name="${host_name:-$name}"
   done
+  return 1
+}
+if [ -z "$host_name" ]; then
+  # Iru can run this script before its Device Name item renames the Mac, so wait for that.
+  for try in $(seq 1 40); do
+    host_name="$(sable_name)" && break
+    [ "$try" -eq 1 ] && log "waiting up to 10 minutes for Iru to rename the Mac to sable-<asset tag>"
+    sleep 15
+  done
+  [ -n "$host_name" ] || die "the Mac is still named '$(scutil --get LocalHostName 2>/dev/null)', not sable-<asset tag>; check the asset tag and Device Name item in Iru (Iru reruns this script at the next check-in)"
 fi
 case "$host_name" in
   sable-*) ;;
