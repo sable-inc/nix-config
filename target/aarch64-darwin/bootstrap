@@ -1,7 +1,8 @@
 #!/bin/bash
 # Unattended first run on a fresh Mac, run as root (an Iru custom script, or sudo).
 # Each step checks its own end state first, so a rerun after a failure resumes.
-# --update (Iru Self Service): on an installed Mac, move to main and rebuild only if it changed.
+# --update (Iru, every check-in): on an installed Mac, rebuild only when the fleet branch moved.
+# Merges to main reach Macs only after someone runs: git push origin main:fleet
 set -euo pipefail
 
 profile="trial"
@@ -169,11 +170,12 @@ cd /etc/nix-darwin
 # The last nix-config commit that built and switched; a failed build is retried next run.
 built_file=/var/db/sable-nix-config-built
 if [ "$update" = 1 ]; then
-  # Updates always follow main, even on a Mac first installed from a test branch.
-  { as_user git fetch --quiet origin main &&
-    { as_user git checkout --quiet main 2>/dev/null || as_user git checkout --quiet -b main origin/main; } &&
-    as_user git merge --ff-only --quiet origin/main; } ||
-    die "could not move /etc/nix-darwin to main (local changes?); fix by hand with git status there"
+  # Updates follow the fleet branch (a released point on main), even on a Mac first installed
+  # from a test branch; the local main branch is fast-forwarded to it.
+  { as_user git fetch --quiet origin fleet &&
+    { as_user git checkout --quiet main 2>/dev/null || as_user git checkout --quiet -b main origin/fleet; } &&
+    as_user git merge --ff-only --quiet origin/fleet; } ||
+    die "could not move /etc/nix-darwin to fleet (local changes?); fix by hand with git status there"
 else
   as_user git pull --ff-only --quiet || die "could not update /etc/nix-darwin (local changes?); fix by hand with git status there"
 fi

@@ -1,13 +1,12 @@
 #!/bin/bash
-# Iru custom script, on demand from Self Service on Sable Trial and Sable Onboard. Moves the
-# Mac to nix-config's main and rebuilds only when it changed since the last build, while
-# sable is logged in. Skips Macs whose first install hasn't finished. Same file for both
-# blueprints.
+# Iru custom script, run every check-in on Sable Trial and Sable Onboard. Rebuilds a Mac only
+# when nix-config's fleet branch has moved since its last build (git push origin main:fleet),
+# while sable is logged in; otherwise it exits at once. Same file for both blueprints.
 set -euo pipefail
 dir="$(mktemp -d)"
 trap 'rm -rf "$dir"' EXIT
 curl --proto '=https' --tlsv1.2 -fsSL -o "$dir/bootstrap" \
-  "https://raw.githubusercontent.com/sable-inc/nix-config/main/target/aarch64-darwin/bootstrap"
+  "https://raw.githubusercontent.com/sable-inc/nix-config/fleet/target/aarch64-darwin/bootstrap"
 /bin/bash "$dir/bootstrap" --update &
 child=$!
 trap 'kill -TERM "$child" 2>/dev/null; wait "$child"; exit 143' TERM INT HUP
