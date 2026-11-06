@@ -3,7 +3,7 @@
 | profile | who | what changes vs `default` |
 |:--|:--|:--|
 | `default` | existing machines | nothing (builds the same system as `main`); Orca (orca.dev) is installed on every profile |
-| `onboard` | new hire Mac | + Notion, 1Password, Granola, Linear, Loom casks; + `sable-setup`, `sable-doctor`; work-app dock (Chrome, Spotify, Slack, Zoom, Granola, Notes, Claude, ChatGPT, Linear, Notion, Loom, Wispr Flow, 1Password, Orca, Terminal, Cursor); npm/bun globals under `$HOME`; `NPM_TOKEN` from `gh auth token` |
+| `onboard` | new hire Mac | + Notion, 1Password, Granola, Linear, Loom casks; + `sable-setup`, `sable-doctor`; work-app dock (Chrome, Slack, Orca, Cursor, ChatGPT, Claude, Terminal, Wispr Flow, Zoom, Granola, Notion, Linear, Loom, 1Password, Notes, Spotify, System Settings); npm/bun globals under `$HOME`; `NPM_TOKEN` from `gh auth token` |
 | `trial` | trial laptops | the same as `onboard`, except Figma and Canva instead of Loom (casks and dock); − Devin, opam, qemu, texliveFull, zig; API keys from the Keychain |
 
 `tex-fmt` remains available to Neovim through the shared editor configuration.

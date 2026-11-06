@@ -41,15 +41,17 @@ in
       # hires) and Figma and Canva (trials).
       system.defaults.dock.persistent-apps = lib.mkForce ([
         "/Applications/Google Chrome.app"
-        "/Applications/Nix Apps/Spotify.app"
         "/Applications/Nix Apps/Slack.app"
+        "/Applications/Orca.app"
+        "${config.users.users.${user}.home}/Applications/Home Manager Apps/Cursor.app"
+        "/Applications/ChatGPT.app"
+        "/Applications/Claude.app"
+        "/System/Applications/Utilities/Terminal.app/"
+        "/Applications/Wispr Flow.app"
         "/Applications/zoom.us.app"
         "/Applications/Granola.app"
-        "/System/Applications/Notes.app"
-        "/Applications/Claude.app"
-        "/Applications/ChatGPT.app"
-        "/Applications/Linear.app"
         "/Applications/Notion.app"
+        "/Applications/Linear.app"
       ]
       ++ lib.optional (profile == "onboard") "/Applications/Loom.app"
       ++ lib.optionals (profile == "trial") [
@@ -57,11 +59,9 @@ in
         "/Applications/Canva.app"
       ]
       ++ [
-        "/Applications/Wispr Flow.app"
         "/Applications/1Password.app"
-        "/Applications/Orca.app"
-        "/System/Applications/Utilities/Terminal.app/"
-        "${config.users.users.${user}.home}/Applications/Home Manager Apps/Cursor.app"
+        "/System/Applications/Notes.app"
+        "/Applications/Nix Apps/Spotify.app"
         "/System/Applications/System Settings.app"
       ]);
       home-manager.users.${user} = {
