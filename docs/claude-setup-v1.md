@@ -29,8 +29,12 @@ the candidate's role, and `sable-setup` sets up exactly that access and nothing 
 The slot's GitHub account gets only the repos in `REPOS`. Remove the previous trial's repo and
 GCP access at reset.
 
-The Onboarding bot produces one file per trial, `trial-inputs.env`, with no secrets in it.
-Copy it to `~/trial-inputs.env` on the laptop. Leave out any line the role doesn't need:
+The Onboarding bot writes one file per trial, `<slot>/trial-inputs.env` (for example
+`trial3/trial-inputs.env`), in the private repo `sable-inc/trial-inputs`, with no secrets in it.
+Nobody copies it: `sable-setup` signs in to GitHub as the slot's account and downloads the file
+for this Mac's slot (from its name, `sable-trial3`). Every slot's GitHub account needs read
+access to that repo, including for EL, AE and Marketing trials; `sable-setup` signs those out
+of GitHub again. Leave out any line the role doesn't need:
 
 ```sh
 # A DS trial
@@ -55,13 +59,14 @@ GCP="yes"                              # gcloud signed in as TRIAL_EMAIL
 `sable-setup` stores the API keys in the login Keychain, never in a file or shell history.
 New shells on the trial Mac export them as `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`.
 
-With `AGENT_PATH`, also ask the Onboarding bot for the approved trial prompt template and save
-it as `~/trial-prompt-template.md`. `sable-setup` writes `~/TRIAL_PROMPT.md` from it, replacing
-`{{AGENT_PATH}}` and `{{AGENT_ID}}`.
+With `AGENT_PATH`, `sable-setup` also downloads the approved trial prompt template
+(`<slot>/trial-prompt-template.md`, or `trial-prompt-template.md` at the top of the repo) and
+writes `~/TRIAL_PROMPT.md` from it, replacing `{{AGENT_PATH}}` and `{{AGENT_ID}}`.
 
 If any value still looks like `<...>`, `agt_...`, `agt_XXXX` or `TODO`, `sable-setup` stops.
-That is what broke the Oct 25 trial. Keep these per-trial files on the laptop, not in this
-public repository.
+That is what broke the Oct 25 trial. Keep these per-trial files in `sable-inc/trial-inputs`,
+never in this public repository, and delete the slot's folder at reset. If the repo can't be
+reached, a file copied to `~/trial-inputs.env` by hand still works.
 
 ## B only: reset first
 
@@ -93,10 +98,11 @@ with that privacy permission. Terminal.app has it; Ghostty and Orca don't by def
    ```sh
    cd /etc/nix-darwin && nix --extra-experimental-features 'nix-command flakes' run path:.#build-switch
    ```
-7. Put `~/trial-inputs.env` (and the template, for an agent) on the Mac. Then:
-   - **EL, AE, Marketing:** sign in to Chrome, Slack and the other apps with the slot's Google
-     account. Nothing else
-   - **Every other role:** in Terminal.app, run `sable-setup`. It signs in to GitHub, sets up
+7. In Terminal.app, run `sable-setup`, for every role. It signs in to GitHub as the slot's
+   account and downloads this slot's list from `sable-inc/trial-inputs`. Then:
+   - **EL, AE, Marketing:** it signs GitHub out and says to sign in to Chrome, Slack and the
+     other apps with the slot's Google account. Nothing else
+   - **Every other role:** it sets up
      Sable's packages and the sable CLI in the Trials org, installs SableBrowse, then sets up
      each piece of access in the file. It stops and tells you what to do at each browser
      sign-in, the API key prompts and the Chrome extension, and ends with `sable-doctor`.

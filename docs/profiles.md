@@ -42,7 +42,8 @@ installer fails with "Operation not permitted".
 
 `sable-setup` finishes a trial or new-hire Mac after the install: GitHub sign-in, Sable's
 packages, the sable CLI (Trials org on trial Macs, Sable otherwise), SableBrowse, and on trial
-Macs the access listed in `~/trial-inputs.env` (repos, trial agent, API keys, Vercel, gcloud).
+Macs the access listed in the slot's `trial-inputs.env`, which it downloads from the private
+`sable-inc/trial-inputs` repo (repos, trial agent, API keys, Vercel, gcloud).
 It stops at each step a person must do and is safe to rerun.
 
 `sable-doctor [--trial-dir <path>]` prints PASS/FAIL per piece (apps, CLIs, gh auth and
