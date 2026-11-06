@@ -23,7 +23,7 @@ Sable Onboard and Sable Trial each get these items (done Nov 5, 2026):
 | library item | setting | file |
 |:--|:--|:--|
 | Device Name | name and hostname `sable-` + Asset tag | |
-| Custom Profile | upload | `mdm/chrome-sablebrowse.mobileconfig` |
+| Custom Profile | upload; installs the SableBrowse and 1Password Chrome extensions | `mdm/chrome-sablebrowse.mobileconfig` |
 | Custom Script | run once per device; paste the file with `profile` set for the blueprint | `mdm/iru-bootstrap.sh` |
 | Custom Script | run daily; paste the file | `mdm/iru-doctor.sh` |
 | Automated Device Enrollment | Mac: "Skip all screens", auto-advance (needs Ethernet), primary account "Skip", provision local admin `sable` (password in the vault), made the MDM-enabled user | |

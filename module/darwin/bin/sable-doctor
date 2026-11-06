@@ -86,6 +86,7 @@ if have sablebrowse; then
 else bad "SableBrowse" "npm install -g @sable-inc/sablebrowse && sablebrowse setup"; fi
 if ls -d "$HOME"/Library/Application\ Support/Google/Chrome/*/Extensions/ildldnmbjlkbomodicckikcenamaabfj >/dev/null 2>&1; then ok "SableBrowse Chrome extension"; else bad "SableBrowse Chrome extension" "install ildldnmbjlkbomodicckikcenamaabfj from the Chrome Web Store"; fi
 fi
+if ls -d "$HOME"/Library/Application\ Support/Google/Chrome/*/Extensions/aeblfdkhhhdcdjpifhhbdiojplfjncoa >/dev/null 2>&1; then ok "1Password Chrome extension"; else bad "1Password Chrome extension" "Iru installs it with the Chrome profile; open Chrome once, or add it from the Chrome Web Store"; fi
 
 for spec in $repos; do
   repo="${spec%@*}"; branch=""; [ "$spec" != "$repo" ] && branch="${spec#*@}"; dir="$HOME/${repo##*/}"
