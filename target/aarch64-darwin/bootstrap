@@ -1,7 +1,7 @@
 #!/bin/bash
 # Unattended first run on a fresh Mac, run as root (an Iru custom script, or sudo).
 # Each step checks its own end state first, so a rerun after a failure resumes.
-# --update (Iru, daily): on an installed Mac, pull nix-config and rebuild only if main changed.
+# --update (Iru Self Service): on an installed Mac, move to main and rebuild only if it changed.
 set -euo pipefail
 
 profile="trial"
