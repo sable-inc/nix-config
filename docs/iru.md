@@ -26,6 +26,7 @@ Sable Onboard and Sable Trial each get these items (done Nov 5, 2026):
 | Custom Profile | upload; installs the SableBrowse and 1Password Chrome extensions | `mdm/chrome-sablebrowse.mobileconfig` |
 | Custom Script | run once per device; paste the file with `profile` set for the blueprint | `mdm/iru-bootstrap.sh` |
 | Custom Script | run daily; paste the file | `mdm/iru-doctor.sh` |
+| Custom Script | run every check-in; paste the file (same for both blueprints) | `mdm/iru-update.sh` |
 | Automated Device Enrollment | Mac: "Skip all screens", auto-advance (needs Ethernet), primary account "Skip", provision local admin `sable` (password in the vault), made the MDM-enabled user | |
 
 The bootstrap is one library item per blueprint, because `profile` differs. The other items
@@ -34,6 +35,14 @@ bootstrap item for one with the right `profile`.
 
 `iru-bootstrap.sh` downloads `target/aarch64-darwin/bootstrap` from `main`. To test a branch,
 set `ref` in the pasted script to it, and set it back to `main` afterwards.
+
+`iru-update.sh` brings installed Macs to a released point of nix-config without anyone
+typing build-switch. Merging to `main` changes no Mac. To release, run
+`git push origin main:fleet` (a fast-forward of the `fleet` branch); within about 15 minutes
+every trial and new-hire Mac with `sable` logged in rebuilds to it. At every other check-in
+the script finds nothing new and exits. Release outside trial hours: a rebuild upgrades
+Homebrew apps and removes Homebrew apps that nix-config doesn't list. It skips Macs whose
+first install hasn't finished, and never runs at the same time as the bootstrap.
 
 All three blueprints carry Sable's security settings (disk encryption, screen lock, OS
 updates); add the same to any new blueprint, such as **Sable Trial (non-technical)**. The
