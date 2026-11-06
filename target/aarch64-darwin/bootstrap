@@ -157,7 +157,7 @@ if [ "$update" = 1 ]; then
   # Build exactly the released commit: a local fleet branch reset to origin/fleet. A checkout
   # that would overwrite local changes fails instead.
   # local.nix is untracked (gitignored); any edit to a tracked file stops the update.
-  as_user git diff --quiet && as_user git diff --cached --quiet ||
+  { as_user git diff --quiet && as_user git diff --cached --quiet; } ||
     die "/etc/nix-darwin has local edits; the update only builds the exact release (see git status there)"
   { as_user git fetch --quiet origin fleet &&
     as_user git checkout --quiet -B fleet origin/fleet; } ||
