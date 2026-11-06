@@ -66,7 +66,8 @@ writes `~/TRIAL_PROMPT.md` from it, replacing `{{AGENT_PATH}}` and `{{AGENT_ID}}
 If any value still looks like `<...>`, `agt_...`, `agt_XXXX` or `TODO`, `sable-setup` stops.
 That is what broke the Oct 25 trial. Keep these per-trial files in `sable-inc/trial-inputs`,
 never in this public repository, and delete the slot's folder at reset. If the repo can't be
-reached, a file copied to `~/trial-inputs.env` by hand still works.
+reached, files copied by hand to `~/trial-inputs.env` (and `~/trial-prompt-template.md` for an
+agent) still work.
 
 ## B only: reset first
 

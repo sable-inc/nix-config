@@ -41,7 +41,7 @@ if [ "$profile" = trial ]; then
   host=$(scutil --get LocalHostName)
   case "$host" in sable-trial*) slot="${host#sable-}" ;; *) die "this Mac is $host; a trial Mac is named sable-trial<n>" ;; esac
   say "GitHub (the $slot GitHub account)"
-  github_login "the $slot GitHub account"
+  github_login "the $slot GitHub account" || echo "GitHub sign-in failed; trying the list already on this Mac"
   if fetch "$slot/trial-inputs.env" "$inputs"; then echo "got $slot's list from $inputs_repo"
   elif [ -s "$inputs" ]; then echo "using the list already on this Mac ($inputs)"
   else die "no list for $slot: ask the Onboarding bot to add $slot/trial-inputs.env to $inputs_repo (or check this GitHub account can read it)"; fi
