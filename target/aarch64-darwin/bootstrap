@@ -18,11 +18,12 @@ log() { printf '%s sable-bootstrap: %s\n' "$(date -u +%FT%TZ)" "$*"; }
 die() { log "FAIL: $*"; exit 1; }
 
 [ "$(id -u)" -eq 0 ] || die "run as root"
-# One run at a time: rerun this script under lockf, which the kernel releases when the run
-# exits or is killed. A busy lock exits 75 (the update wrapper treats that as nothing to do).
-if [ -z "${SABLE_BOOTSTRAP_LOCKED:-}" ]; then
-  SABLE_BOOTSTRAP_LOCKED=1 exec /usr/bin/lockf -k -t 0 /var/run/sable-bootstrap.lock /bin/bash "$0" "$@"
-fi
+# One run at a time: an flock on fd 9, held by this shell and every process it starts, so it
+# lasts until the run's last process exits, even if this shell is stopped or killed. A busy
+# lock exits 75 (the update wrapper treats that as nothing to do).
+exec 9>>/var/run/sable-bootstrap.lock
+/usr/bin/perl -MFcntl=:flock -e 'open(my $f, ">&=9") or exit 2; flock($f, LOCK_EX | LOCK_NB) or exit 75' ||
+  { log "another run holds the lock"; exit 75; }
 
 while [ "$#" -gt 0 ]; do
   if [ "$1" = --update ]; then update=1; shift; continue; fi
