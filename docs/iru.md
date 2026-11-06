@@ -10,7 +10,7 @@ the person's password and phone, so they stay with that person, guided by the Cl
 |:--|:--|:--|
 | **Sable Onboard** | new hires | `onboard` |
 | **Sable Trial** | trial laptops | `trial` |
-| **Default Blueprint** | every other Mac: those enrolled before Nov 2026, and new hires after their first week | none (security settings and the Chrome extensions only) |
+| **Default Blueprint** | every other Mac: those enrolled before Nov 2026, and new hires after their first week | none (security settings; plus the Chrome extensions profile, assigned before any hire moves) |
 
 Automated Device Enrollment is connected (Apple Business, Oct 29, 2026): a Mac that is in
 Apple Business enrolls into Iru during Setup Assistant. A Mac not already in Apple Business
@@ -41,7 +41,8 @@ typing build-switch. Merging to `main` changes no Mac. To release, run
 `git push origin main:fleet` (a fast-forward of the `fleet` branch); within about 15 minutes
 every trial and new-hire Mac with `sable` logged in rebuilds to it. At every other check-in
 the script finds nothing new and exits. Release outside trial hours: a rebuild upgrades
-Homebrew apps and removes Homebrew apps that nix-config doesn't list. It skips Macs whose
+Homebrew apps, and on trial Macs also removes Homebrew apps that nix-config doesn't list
+(new-hire Macs keep them). It skips Macs whose
 first install hasn't finished, and never runs at the same time as the bootstrap.
 
 All three blueprints carry Sable's security settings (disk encryption, screen lock, OS
@@ -109,12 +110,16 @@ bootstrap if later steps need sudo after the grant expires.
 
 A new hire's Mac stays on **Sable Onboard** for their first week, so anything that needs
 fixing can be fixed and released. After that, move it to **Default Blueprint** (the device
-page, or Enrollment). Nothing is erased or uninstalled: the Mac just stops getting nix-config
-updates, so the hire's own apps, dock and settings are never reset. They can still update by
-hand from `/etc/nix-darwin`. Default Blueprint carries the security settings and the Chrome
-extensions profile (`mdm/chrome-sablebrowse.mobileconfig`); add that profile to it, or Chrome
-drops SableBrowse and 1Password when the Mac leaves Sable Onboard. Company-wide additions
-later go to Default Blueprint as Iru apps or profiles, which only add.
+page, or Enrollment). Nothing nix-config installed is erased or uninstalled: the Mac just
+stops getting automatic nix-config updates, so the hire's own apps, dock and settings are
+never reset automatically. Running build-switch by hand from `/etc/nix-darwin` still applies
+the Sable dock and settings, so only do that on purpose.
+
+Before moving anyone, assign the Chrome extensions profile
+(`mdm/chrome-sablebrowse.mobileconfig`) to Default Blueprint. A Mac moved without it loses
+SableBrowse and 1Password from Chrome. Assigning it also installs both extensions on every
+other Mac on Default Blueprint, including those enrolled before Nov 2026. Company-wide
+additions later go to Default Blueprint as Iru apps or profiles, which only add.
 
 ## Non-technical trials
 
