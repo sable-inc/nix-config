@@ -21,9 +21,33 @@ case "$profile" in
 esac
 [ "$(id -un)" = sable ] || die "run this as the sable user"
 
+github_login() { # github_login [expected user]
+  if gh auth status 2>&1 | grep -q 'read:packages'; then return; fi
+  you "Sign in to GitHub${1:+ as $1} in the browser that opens."
+  you "When asked \"Authenticate Git with your GitHub credentials?\", answer No."
+  gh auth login --web --git-protocol https --scopes read:packages
+}
+fetch() { # fetch <path in the inputs repo> <local file>: true if downloaded
+  local tmp="$2.partial"
+  if (umask 077; gh api -H 'Accept: application/vnd.github.raw' "repos/$inputs_repo/contents/$1" >"$tmp" 2>/dev/null) && [ -s "$tmp" ]; then
+    mv "$tmp" "$2"
+  else rm -f "$tmp"; return 1; fi
+}
+
 email="" github_user="" repos="" agent_path="" agent_id="" api_keys="" vercel="" gcp=""
 if [ "$profile" = trial ]; then
-  [ -s "$inputs" ] || die "$inputs is missing; ask the Onboarding bot for it"
+  # The Onboarding bot writes each slot's list to a private repo; this Mac's name gives the slot.
+  inputs_repo="sable-inc/trial-inputs"
+  host=$(scutil --get LocalHostName)
+  case "$host" in sable-trial*) slot="${host#sable-}" ;; *) die "this Mac is $host; a trial Mac is named sable-trial<n>" ;; esac
+  say "GitHub (the $slot GitHub account)"
+  github_login "the $slot GitHub account" || echo "GitHub sign-in failed; trying the list already on this Mac"
+  # Slot accounts are outside collaborators: accept the repo's pending invite, if any.
+  invite=$(gh api user/repository_invitations --jq ".[] | select(.repository.full_name==\"$inputs_repo\") | .id" 2>/dev/null | head -1) || true
+  [ -z "$invite" ] || gh api -X PATCH "user/repository_invitations/$invite" >/dev/null 2>&1 || true
+  if fetch "$slot/trial-inputs.env" "$inputs"; then echo "got $slot's list from $inputs_repo"
+  elif [ -s "$inputs" ]; then echo "using the list already on this Mac ($inputs)"
+  else die "no list for $slot: ask the Onboarding bot to add $slot/trial-inputs.env to $inputs_repo (or check this GitHub account can read it)"; fi
   if grep -Eq '<[A-Za-z_]+>|agt_X{4,}|agt_\.\.\.|TODO' "$inputs"; then
     die "$inputs still has placeholders; ask the Onboarding bot for the real values"
   fi
@@ -31,10 +55,11 @@ if [ "$profile" = trial ]; then
   agent_path=$(input AGENT_PATH); agent_id=$(input AGENT_ID)
   api_keys=$(input API_KEYS); vercel=$(input VERCEL); gcp=$(input GCP)
   [ -n "$email" ] || die "TRIAL_EMAIL is empty in $inputs"
-  [ "$(scutil --get LocalHostName)" = "sable-$(input TRIAL_SLOT)" ] || die "this Mac is $(scutil --get LocalHostName), but $inputs is for sable-$(input TRIAL_SLOT)"
+  [ "$(input TRIAL_SLOT)" = "$slot" ] || die "this Mac is $host, but $inputs is for sable-$(input TRIAL_SLOT)"
   if [ -z "$github_user" ]; then
     if [ -n "$repos$agent_path$api_keys$vercel$gcp" ]; then die "TRIAL_GITHUB_USER is empty but other access is listed"; fi
-    say "No technical access listed: nothing to set up"
+    gh auth logout --hostname github.com >/dev/null 2>&1 || true
+    say "No technical access listed: nothing to set up (signed GitHub out again)"
     you "Sign in to Chrome, Slack, Zoom and the other apps with $email (Google sign-in)."
     you "Allow the microphone, camera and screen recording when an app asks."
     exec sable-doctor
@@ -42,21 +67,18 @@ if [ "$profile" = trial ]; then
   if [ -n "$agent_path" ]; then
     case " $repos " in *" sable-inc/deployments"[@\ ]*) ;; *) die "AGENT_PATH needs sable-inc/deployments in REPOS" ;; esac
     [ -n "$agent_id" ] || die "AGENT_PATH is set but AGENT_ID is empty"
-    [ -s "$HOME/trial-prompt-template.md" ] || die "~/trial-prompt-template.md is missing; ask the Onboarding bot for it"
+    fetch "$slot/trial-prompt-template.md" "$HOME/trial-prompt-template.md" \
+      || fetch "trial-prompt-template.md" "$HOME/trial-prompt-template.md" || true
+    [ -s "$HOME/trial-prompt-template.md" ] || die "no trial prompt template: ask the Onboarding bot to add trial-prompt-template.md to $inputs_repo"
   fi
 fi
 
 say "GitHub"
-if gh auth status 2>&1 | grep -q 'read:packages' && { [ -z "$github_user" ] || [ "$(gh api user --jq .login 2>/dev/null)" = "$github_user" ]; }; then
-  echo "signed in as $(gh api user --jq .login)"
-else
-  you "Sign in to GitHub${github_user:+ as $github_user} in the browser that opens."
-  you "When asked \"Authenticate Git with your GitHub credentials?\", answer No."
-  gh auth login --web --git-protocol https --scopes read:packages
-  if [ -n "$github_user" ] && [ "$(gh api user --jq .login)" != "$github_user" ]; then
-    die "signed in to GitHub as $(gh api user --jq .login), expected $github_user; run: gh auth logout, then sable-setup again"
-  fi
+github_login "$github_user"
+if [ -n "$github_user" ] && [ "$(gh api user --jq .login)" != "$github_user" ]; then
+  die "signed in to GitHub as $(gh api user --jq .login), expected $github_user; run: gh auth logout, then sable-setup again"
 fi
+echo "signed in as $(gh api user --jq .login)"
 # nix-config owns ~/.config/git/config, so the helper goes in ~/.gitconfig (not gh auth setup-git).
 git config --file "$HOME/.gitconfig" --replace-all credential.https://github.com.helper ""
 git config --file "$HOME/.gitconfig" --add credential.https://github.com.helper "!$(command -v gh) auth git-credential"

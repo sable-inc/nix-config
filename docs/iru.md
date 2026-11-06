@@ -81,9 +81,8 @@ Not in Apple Business:
 Then, either way:
 
 3. Wait until the bootstrap script passes on the device page (45 to 90 minutes on a fresh Mac; the first run downloads and builds everything)
-4. Trial: put `~/trial-inputs.env` on the Mac (plus `~/trial-prompt-template.md` when it lists
-   an agent), then follow step 7 of `docs/claude-setup-v1.md`: app sign-ins, and `sable-setup`
-   for every role except EL, AE and Marketing.
+4. Trial: once the Onboarding bot has written the slot's list to `sable-inc/trial-inputs`, run
+   `sable-setup` in Terminal.app and follow step 7 of `docs/claude-setup-v1.md`.
    New hire: on their first day, they sign in to their apps and run `sable-setup`
    (`docs/claude-setup-v1.md`, section C)
 
@@ -97,14 +96,16 @@ bootstrap if later steps need sudo after the grant expires.
 ## Non-technical trials
 
 EL, AE and Marketing trials use a normal Sable Trial Mac with no GitHub or other access in
-`trial-inputs.env`: they only sign in to the apps. A lighter blueprint without Nix (Iru Auto
+`trial-inputs.env`. `sable-setup` signs in to GitHub only to read the list, then signs out;
+they only sign in to the apps. A lighter blueprint without Nix (Iru Auto
 Apps instead of the bootstrap) is possible but not built.
 
 ## Reset
 
 In this order, and finish each step before the next:
 
-1. Revoke the trialer's access (the bots). This rotates the slot's passwords and signs out
+1. Revoke the trialer's access (the bots), and delete the slot's folder in
+   `sable-inc/trial-inputs`. This rotates the slot's passwords and signs out
    every session, including on the Mac. Never run it while someone is setting up or signing
    in at a trial Mac (ask whoever is at the Mac): they would have to sign in to everything again
 2. Check the slot's account is on Sable's Claude team with a seat that includes Claude Code.
