@@ -105,8 +105,8 @@ Apps instead of the bootstrap) is possible but not built.
 In this order, and finish each step before the next:
 
 1. Revoke the trialer's access (the bots). This rotates the slot's passwords and signs out
-   every session, including on the Mac. Never run it while a trial Mac is being set up or
-   signed in: everyone at that Mac has to sign in to everything again
+   every session, including on the Mac. Never run it while someone is setting up or signing
+   in at a trial Mac (ask whoever is at the Mac): they would have to sign in to everything again
 2. Check the slot's account is on Sable's Claude team with a seat that includes Claude Code.
    Without one, `claude` asks for Pro or Max at sign-in
 3. Erase the Mac from Iru. It returns to Setup Assistant; start again at step 1

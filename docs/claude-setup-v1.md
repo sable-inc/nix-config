@@ -33,6 +33,7 @@ The Onboarding bot produces one file per trial, `trial-inputs.env`, with no secr
 Copy it to `~/trial-inputs.env` on the laptop. Leave out any line the role doesn't need:
 
 ```sh
+# A DS trial
 TRIAL_NAME="Jane Doe"
 TRIAL_EMAIL="trial1@sable.ai"          # the slot's Google account
 TRIAL_SLOT="trial1"                    # this Mac is sable-trial1
@@ -40,10 +41,19 @@ TRIAL_GITHUB_USER="<GITHUB_USER>"      # the slot's GitHub account; empty = no t
 REPOS="sable-inc/deployments@trial/jane-doe"   # space-separated, @branch optional
 AGENT_PATH="trials/partner-qualifier-jane"     # inside ~/deployments
 AGENT_ID="agt_..."                     # the trial agent, never a live one
+```
+
+An Eng or FDE trial replaces the last three lines with:
+
+```sh
+REPOS="sable-inc/jane-doe"
 API_KEYS="yes"                         # Anthropic and OpenAI keys, typed in by a person
 VERCEL="yes"
 GCP="yes"                              # gcloud signed in as TRIAL_EMAIL
 ```
+
+`sable-setup` stores the API keys in the login Keychain, never in a file or shell history.
+New shells on the trial Mac export them as `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`.
 
 With `AGENT_PATH`, also ask the Onboarding bot for the approved trial prompt template and save
 it as `~/trial-prompt-template.md`. `sable-setup` writes `~/TRIAL_PROMPT.md` from it, replacing
