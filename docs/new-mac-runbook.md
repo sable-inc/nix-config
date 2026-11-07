@@ -196,5 +196,6 @@ one case where you create the account yourself:
    password from 1Password item **Trial-pw**, then log in
 2. System Settings > General > Sharing > set the name to `sable-<asset tag>`
 3. Enroll at Iru: Enrollment > tab **Manual Enrollment**, use the blueprint's enrollment
-   code there, and follow the link on the Mac. Then in Iru: Devices > the Mac's name > **Edit device details** > **Edit asset tag**
+   code there, and follow the link on the Mac. Then in Iru: Devices > the Mac's name > **Edit device details** > **Edit asset tag** >
+   type the asset tag from Part A > save
 4. Continue at Part F
