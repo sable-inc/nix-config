@@ -47,7 +47,9 @@ first install hasn't finished, and never runs at the same time as the bootstrap.
 
 All three blueprints carry Sable's security settings (disk encryption, screen lock, OS
 updates); add the same to any new blueprint, such as **Sable Trial (non-technical)**. The
-details are kept privately. Iru escrows FileVault keys, so don't store them by hand.
+details are kept privately. Iru escrows FileVault keys, so don't store them by hand. FileVault
+can show "Error" in Iru right after setup and clear by the next sync; recheck after a sync
+before treating it as a problem.
 
 Or by API: an Iru token with these write permissions lets a script create the same items.
 Grant only what is listed, and add the matching read permissions:
@@ -62,6 +64,9 @@ Iru (Enrollment, the "Enroll to" column, or the device page) before it is turned
 The enrollment item creates `sable` itself, so nobody makes an account. Someone still logs
 in as `sable` once so the bootstrap can finish. First tested on trial3 (Nov 6, 2026):
 enrollment, rename, FileVault and the bootstrap all passed.
+
+If a Mac enrolled through Apple Business keeps the wrong name, rename it on the Iru website:
+the device's menu > Set device name. Iru's API can't rename these Macs.
 
 Profile-based Device Enrollment also supervises Macs on macOS 11 or later; Apple Business
 is not required for supervision. For a hand-enrolled Mac, verify that Iru applies the Device
@@ -103,7 +108,9 @@ Iru. The Mac must not get past the first Setup Assistant screens until Iru has i
 
 1. Turn the Mac on and add it with Apple Configurator on an iPhone at the first Setup
    Assistant screen (see "Adding a Mac to Apple Business" below). Configurator often shows
-   errors; ignore them and check step 2 instead. Then leave the Mac alone
+   errors even when it worked. Before retrying, look for the serial in business.apple.com >
+   Devices > Inventory: if it's there, the Mac was added, so don't retry. Then leave the Mac
+   alone
 2. In Apple Business, find the serial and check its device management service is Iru (not
    "Devices Added by Apple Configurator 2"); change it to Iru if not
 3. In Iru, Enrollment > Automated Device Enrollment (Sync if it isn't listed yet): wait until
