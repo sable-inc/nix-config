@@ -1,5 +1,7 @@
 # Trial and new-hire Macs in Iru (v2)
 
+Setting up a Mac? Follow `docs/new-mac-runbook.md` step by step. This doc is the background.
+
 Iru runs the install that `docs/claude-setup-v1.md` does by hand, for trial Macs and for
 new-hire Macs. With Ethernet, Setup Assistant shows no screens; on Wi-Fi it asks only for
 language, country and Wi-Fi. Iru creates the `sable` admin account, then installs the Command Line Tools, Nix and this repo with the trial
