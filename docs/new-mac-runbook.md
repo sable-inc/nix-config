@@ -167,8 +167,8 @@ invite):
 
 1. The Onboarding bot runs the account reset for the slot (`reset_trial.py`), and only after
    Matthew says go. Nobody may be using the Mac
-2. In Iru, open the Mac (Devices > its name) > the **actions** menu at the top right, next to
-   the name > **Erase**. Get Matthew's OK on this exact serial first. The blueprint and asset
+2. In Iru, open the Mac (Devices > its name) > the **⋯** button at the top right, next to
+   **Edit device details** > **Erase**. Get Matthew's OK on this exact serial first. The blueprint and asset
    tag stay the same
 3. The Mac restarts to the first setup screen. Go to Part E
 
@@ -186,7 +186,7 @@ the menu bar choose **Recovery Assistant > Erase Mac**.
 | Configurator errors on the iPhone | Usually it worked anyway | Check business.apple.com > Devices for the serial before retrying |
 | Serial not in Iru after an hour | Apple Business isn't pointing it at Iru | business.apple.com > Devices > Inventory > the Mac > **Assign Device Management** > Iru, then Iru > **Fetch devices** |
 | Mac in Iru says "Awaiting enrollment" | Normal before Part E | Nothing; it changes once the Mac reaches Remote Management |
-| Wrong name after an hour | Iru's rename didn't apply | Iru > the device > **actions** menu > **Set device name** > `sable-<asset tag>` |
+| Wrong name after an hour | Iru's rename didn't apply | Iru > the device > **⋯** (top right) > **Set device name** > `sable-<asset tag>` |
 | Bootstrap still **Pending** and **Last check-in** is old (more than 20 minutes) | The Mac is asleep, at the login screen, or off the network | Plug it in, open the lid, log in as `sable`, check Wi-Fi. Within a few minutes Last check-in updates and the bootstrap starts |
 | Bootstrap shows Failed | Something in the install | Leave the Mac on and logged in; send Matthew the device page link. The log is `/var/log/sable-bootstrap.log` on the Mac |
 | FileVault shows Error | Usually just early | Check again after the next sync |
