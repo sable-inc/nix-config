@@ -70,21 +70,52 @@ General > Sharing before retrying the bootstrap, which requires the `sable-` pre
 
 ## Each Mac (new or erased)
 
-In Apple Business:
+**The one rule for whoever is at the Mac: if Setup Assistant asks you to create an account,
+stop.** The Mac did not enroll. Iru creates `sable` itself, so an account prompt means Setup
+Assistant missed Iru. Erase the Mac (System Settings > General > Transfer or Reset > Erase All
+Content and Settings) and start again; don't create the account. A Mac checks for Iru only
+once, early in Setup Assistant, and never again after setup finishes.
 
-1. In Iru, set the asset tag and the blueprint before the Mac is turned on. Trial: the slot
-   (`trial1`) and **Sable Trial**, so the Mac becomes `sable-trial1`. New hire: their first
-   name (`jane`) and **Sable Onboard**, so the Mac becomes `sable-jane`. If a Mac already has
-   that name, use the first initial and last name (`jdoe`).
-   Use lowercase letters, digits and `-` only. The name shows on the Mac's login and lock
-   screen
-2. Erase it (from Iru if it's enrolled, otherwise System Settings > General > Transfer or
-   Reset > Erase All Content and Settings) and turn it on. With Ethernet, Setup Assistant
-   needs nothing; on Wi-Fi, pick the language, country and network. The Mac enrolls into Iru
-   and Iru creates `sable`. Log in as `sable` (the password is in the vault) and leave it
-   logged in and plugged in. The bootstrap waits for that login before its last step
+The "Asset tag" sets the name. Trial: the slot (`trial1`) with **Sable Trial**, so the Mac
+becomes `sable-trial1`. New hire: their first name (`jane`) with **Sable Onboard**, so the
+Mac becomes `sable-jane`; if a Mac already has that name, the first initial and last name
+(`jdoe`). Lowercase letters, digits and `-` only. The name shows on the login and lock screen.
 
-Not in Apple Business:
+### 1. Bought through Apple Business (the normal way)
+
+Buy every Mac this way: Apple's business store or an Apple Store business team, or a reseller
+linked to Sable's Apple Business account, giving Sable's Apple Customer Number (Apple Business
+> Preferences > Enrollment Information). Ask a reseller whether it is linked before buying.
+These Macs appear in Iru on their own.
+
+1. In Iru, Enrollment > Automated Device Enrollment, find the serial and set the blueprint and
+   asset tag. It shows "Awaiting enrollment": that is correct, Iru is waiting for the Mac
+2. Plug in Ethernet and turn it on (an already-used Mac: erase it first, from Iru if it's
+   enrolled). With Ethernet, Setup Assistant needs nothing; on Wi-Fi, pick the language,
+   country and network. A Remote Management screen appears and Iru takes over
+3. At the login screen, log in as `sable` (the password is in the vault) and leave it logged
+   in and plugged in. The bootstrap waits for that login before its last step
+
+### 2. Bought anywhere else (retail, such as Best Buy)
+
+Configurator often reports errors, and Apple Business can take a while to pass the Mac to
+Iru. The Mac must not get past the first Setup Assistant screens until Iru has it.
+
+1. Turn the Mac on and add it with Apple Configurator on an iPhone at the first Setup
+   Assistant screen (see "Adding a Mac to Apple Business" below). Configurator often shows
+   errors; ignore them and check step 2 instead. Then leave the Mac alone
+2. In Apple Business, find the serial and check its device management service is Iru (not
+   "Devices Added by Apple Configurator 2"); change it to Iru if not
+3. In Iru, Enrollment > Automated Device Enrollment (Sync if it isn't listed yet): wait until
+   the serial is there, then set the blueprint and asset tag. It shows "Awaiting enrollment"
+4. Erase the Mac so it checks again, now that Iru has it. If setup finished: System Settings >
+   General > Transfer or Reset > Erase All Content and Settings. If it's still in Setup
+   Assistant: hold the power button until startup options load, Options, then Recovery
+   Assistant > Erase Mac. Then follow path 1 from step 2
+
+### Not in Apple Business at all
+
+Only if Configurator can't add it:
 
 1. Setup Assistant: create `sable` as above and log in. Set the name to `sable-<slot>` in
    System Settings > General > Sharing
