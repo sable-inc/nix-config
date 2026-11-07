@@ -40,6 +40,11 @@ done
 
 exec > >(tee -a "$log_file") 2>&1
 
+# Keep the Mac awake until this run ends: a sleeping Mac pauses the install and stops checking
+# in to Iru. Works plugged in with the lid open; closing a MacBook's lid still sleeps it.
+# fd 9 is closed for it so it never holds the run lock.
+/usr/bin/caffeinate -ims -w "$$" 9>&- &
+
 [ "$(id -u)" -eq 0 ] || die "run as root"
 [ "$(uname -m)" = "arm64" ] || die "Apple silicon only"
 id "$user" >/dev/null 2>&1 || die "user $user does not exist; create it in Setup Assistant or with Iru first"

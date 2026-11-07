@@ -119,7 +119,11 @@ For each Mac:
    renames it within the hour
 8. Log in as **sable** with the password from 1Password item **Trial-pw**. If a box asks for the password to
    turn on FileVault, type the same password and click **OK**
-9. Leave it **logged in, plugged in, lid open**. Don't install or change anything
+9. Leave it **logged in, plugged in, lid open** until Part F says Pass. Don't install or
+   change anything. The screen locking by itself is fine. A closed lid, a dead battery or the
+   login screen is not: the Mac sleeps or waits, stops checking in to Iru, and nothing installs
+   (this is what happened on Nov 6). The install keeps the Mac awake on its own while it runs,
+   but only with the charger in and the lid open
 
 ## Part F. Wait for the install (45 to 90 minutes)
 
@@ -183,6 +187,7 @@ the menu bar choose **Recovery Assistant > Erase Mac**.
 | Serial not in Iru after an hour | Apple Business isn't pointing it at Iru | business.apple.com > Devices > Inventory > the Mac > **Assign Device Management** > Iru, then Iru > **Fetch devices** |
 | Mac in Iru says "Awaiting enrollment" | Normal before Part E | Nothing; it changes once the Mac reaches Remote Management |
 | Wrong name after an hour | Iru's rename didn't apply | Iru > the device > **actions** menu > **Set device name** > `sable-<asset tag>` |
+| Bootstrap still **Pending** and **Last check-in** is old (more than 20 minutes) | The Mac is asleep, at the login screen, or off the network | Plug it in, open the lid, log in as `sable`, check Wi-Fi. Within a few minutes Last check-in updates and the bootstrap starts |
 | Bootstrap shows Failed | Something in the install | Leave the Mac on and logged in; send Matthew the device page link. The log is `/var/log/sable-bootstrap.log` on the Mac |
 | FileVault shows Error | Usually just early | Check again after the next sync |
 | `sable-setup` says "stopped: ..." | A missing input or sign-in | Read the line; it says what's missing. Send it to the Onboarding bot or Matthew |
