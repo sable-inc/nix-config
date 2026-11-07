@@ -186,7 +186,7 @@ the menu bar choose **Recovery Assistant > Erase Mac**.
 | Configurator errors on the iPhone | Usually it worked anyway | Check business.apple.com > Devices for the serial before retrying |
 | Serial not in Iru after an hour | Apple Business isn't pointing it at Iru | business.apple.com > Devices > Inventory > the Mac > **Assign Device Management** > Iru, then Iru > **Fetch devices** |
 | Mac in Iru says "Awaiting enrollment" | Normal before Part E | Nothing; it changes once the Mac reaches Remote Management |
-| Wrong name after an hour | Iru's rename didn't apply | Iru > the device > **⋯** (top right) > **Set device name** > `sable-<asset tag>` |
+| Wrong name after an hour (Parts D and E, not Part I) | Iru's rename didn't apply | Iru > the device > **⋯** (top right) > **Set device name** > `sable-<asset tag>` |
 | Bootstrap still **Pending** and **Last check-in** is old (more than 20 minutes) | The Mac is asleep, at the login screen, or off the network | Plug it in, open the lid, log in as `sable`, check Wi-Fi. Within a few minutes Last check-in updates and the bootstrap starts |
 | Bootstrap shows Failed | Something in the install | Leave the Mac on and logged in; send Matthew the device page link. The log is `/var/log/sable-bootstrap.log` on the Mac |
 | FileVault shows Error | Usually just early | Check again after the next sync |
