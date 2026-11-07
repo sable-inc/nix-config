@@ -20,7 +20,7 @@ The background (why it works this way) is in `docs/iru.md`. You don't need it to
 - The Mac and its charger. An Ethernet cable and USB-C Ethernet adapter if you have them
   (with Ethernet, the Mac sets itself up with no clicks; without, about four clicks)
 - Access to Iru (sable.iru.com) and Apple Business (business.apple.com)
-- The `sable` password, from 1Password (ask Matthew which item if you can't find it). Iru
+- The `sable` password: the 1Password item **Trial-pw** (ask Matthew for access). Iru
   creates the `sable` account with it. Never write it in a doc, Slack or a ticket
 - Retail Macs only: an iPhone, see Part C
 
@@ -112,7 +112,7 @@ For each Mac:
 7. The login screen shows the Mac's name (`sable-trial1` or `sable-jane`) and the user
    **sable**. If the name is still something like "MacBook Pro", that's fine for now; Iru
    renames it within the hour
-8. Log in as **sable** with the password from 1Password. If a box asks for the password to
+8. Log in as **sable** with the password from 1Password item **Trial-pw**. If a box asks for the password to
    turn on FileVault, type the same password and click **OK**
 9. Leave it **logged in, plugged in, lid open**. Don't install or change anything
 
@@ -188,7 +188,7 @@ Use this only when Matthew says so (for example a Mac that Configurator can't ad
 one case where you create the account yourself:
 
 1. Setup Assistant: create an admin account with the short name exactly `sable` and the
-   password from 1Password, then log in
+   password from 1Password item **Trial-pw**, then log in
 2. System Settings > General > Sharing > set the name to `sable-<asset tag>`
 3. Enroll at Iru: Enrollment > tab **Manual Enrollment**, use the blueprint's enrollment
    code there, and follow the link on the Mac. Then set the asset tag on the device in Iru
