@@ -73,8 +73,8 @@ General > Sharing before retrying the bootstrap, which requires the `sable-` pre
 **The one rule for whoever is at the Mac (paths 1 and 2): if Setup Assistant asks you to create
 an account, stop.** The Mac did not enroll. Iru creates `sable` itself, so an account prompt
 means Setup Assistant missed Iru. Don't create the account: hold the power button until startup
-options load, choose Options, then Recovery Assistant > Erase Mac, and start again. A Mac checks
-for Iru only once, early in Setup Assistant, and never again after setup finishes.
+options load, choose Options, then Recovery Assistant > Erase Mac, and start again. Erasing is
+the reliable fix: Setup Assistant is where Iru creates `sable` and skips the screens.
 
 In paths 1 and 2, the asset tag sets the name. Trial: the slot (`trial1`) with **Sable Trial**, so the Mac
 becomes `sable-trial1`. New hire: their first name (`jane`) with **Sable Onboard**, so the
