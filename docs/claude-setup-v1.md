@@ -125,7 +125,10 @@ After Iru's install (or hand steps 1-6 with `--profile onboard`):
    Granola, Claude, ChatGPT, Linear, Notion, Loom, Wispr Flow, Cursor, and 1Password (needs
    their 1Password invite)
 3. Once their GitHub account is in sable-inc, they run `sable-setup` in Terminal.app. It does
-   the same as on a trial Mac, with the main Sable org instead of Trials and no inputs file
+   the same as on a trial Mac, with the main Sable org instead of Trials and no inputs file.
+   If anyone else signed in to GitHub on this Mac (for testing), run `gh auth logout` first:
+   `sable-setup` keeps an existing sign-in. When `gh auth login` asks "Authenticate Git with
+   your GitHub credentials?", answer No; `sable-setup` sets that up itself
 4. After their first week, move the Mac to Default Blueprint in Iru (`docs/iru.md`, "New hires
    after week one"), so automatic updates never reset their own setup
 
