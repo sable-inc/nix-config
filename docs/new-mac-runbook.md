@@ -87,9 +87,14 @@ For each Mac:
 2. Not there? Click **Fetch devices**, wait a minute and search again. A Mac you just added in
    Part C can take a while; keep fetching every few minutes. Until it's listed, don't take
    the Mac past Country or Region (this is what went wrong on Nov 6)
-3. On its row, set **Enroll to** (the blueprint) and **Asset tag** from Part A. Check the
+3. Click the Mac's name (blue, first column). Its device page opens. At the top right, next
+   to the name, click **Edit device details**:
+   - **Edit Blueprint** > pick the blueprint from Part A > save
+   - **Edit device details** again > **Edit asset tag** > type the asset tag from Part A > save
+4. Back in **Enrollment** > **Automated Device Enrollment** > **All**, the Mac's row now shows
+   your blueprint under **Enroll to** and your tag under **Asset tag**. Check the
    **ADE Library Item** column says "Sable: Setup Assistant (sable account, skip all screens)"
-4. **Enrollment status** says **Awaiting enrollment**. That is correct: Iru is waiting for the
+5. **Enrollment status** says **Awaiting enrollment**. That is correct: Iru is waiting for the
    Mac. It changes to **Enrolled** during Part E
 
 ## Part E. At the Mac
@@ -151,8 +156,8 @@ invite):
    Claude, ChatGPT, Linear, Notion, Loom, Wispr Flow, Cursor, 1Password
 3. If anyone else ever signed in to GitHub on this Mac, run `gh auth logout` in Terminal first
 4. In Terminal, they run `sable-setup` and follow it as above (with their own GitHub account)
-5. After their first week, move the Mac in Iru to **Default Blueprint** (device page >
-   Blueprint). See `docs/iru.md`, "New hires after week one"
+5. After their first week, move the Mac in Iru to **Default Blueprint** (Devices > the Mac's
+   name > **Edit device details** > **Edit Blueprint**). See `docs/iru.md`, "New hires after week one"
 
 ## Part H. Reset a trial laptop for the next person
 
@@ -191,5 +196,5 @@ one case where you create the account yourself:
    password from 1Password item **Trial-pw**, then log in
 2. System Settings > General > Sharing > set the name to `sable-<asset tag>`
 3. Enroll at Iru: Enrollment > tab **Manual Enrollment**, use the blueprint's enrollment
-   code there, and follow the link on the Mac. Then set the asset tag on the device in Iru
+   code there, and follow the link on the Mac. Then in Iru: Devices > the Mac's name > **Edit device details** > **Edit asset tag**
 4. Continue at Part F
