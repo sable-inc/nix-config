@@ -1,5 +1,7 @@
 # Trial and new-hire Macs in Iru (v2)
 
+Setting up a Mac? Follow `docs/new-mac-runbook.md` step by step. This doc is the background.
+
 Iru runs the install that `docs/claude-setup-v1.md` does by hand, for trial Macs and for
 new-hire Macs. With Ethernet, Setup Assistant shows no screens; on Wi-Fi it asks only for
 language, country and Wi-Fi. Iru creates the `sable` admin account, then installs the Command Line Tools, Nix and this repo with the trial
@@ -115,10 +117,11 @@ Iru. The Mac must not get past the first Setup Assistant screens until Iru has i
    "Devices Added by Apple Configurator 2"); change it to Iru if not
 3. In Iru, Enrollment > Automated Device Enrollment (Sync if it isn't listed yet): wait until
    the serial is there, then set the blueprint and asset tag. It shows "Awaiting enrollment"
-4. Erase the Mac so it checks again, now that Iru has it. If setup finished: System Settings >
-   General > Transfer or Reset > Erase All Content and Settings. If it's still in Setup
-   Assistant: hold the power button until startup options load, Options, then Recovery
-   Assistant > Erase Mac. Then follow path 1 from step 2
+4. Turn the Mac on and follow path 1 from step 2. Only if it went past Select Your Country or
+   Region before Iru listed it, erase it first (only with Matthew's OK on that serial): if setup finished, System Settings > General >
+   Transfer or Reset > Erase All Content and Settings; if it's still in Setup Assistant, hold
+   the power button until startup options load, Options, then Recovery Assistant > Erase Mac.
+   Word-for-word steps (following Apple's guide: pair, shut down, assign): `docs/new-mac-runbook.md`, Part C
 
 ### Not in Apple Business at all
 
