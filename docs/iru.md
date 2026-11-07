@@ -70,13 +70,13 @@ General > Sharing before retrying the bootstrap, which requires the `sable-` pre
 
 ## Each Mac (new or erased)
 
-**The one rule for whoever is at the Mac: if Setup Assistant asks you to create an account,
-stop.** The Mac did not enroll. Iru creates `sable` itself, so an account prompt means Setup
-Assistant missed Iru. Erase the Mac (System Settings > General > Transfer or Reset > Erase All
-Content and Settings) and start again; don't create the account. A Mac checks for Iru only
-once, early in Setup Assistant, and never again after setup finishes.
+**The one rule for whoever is at the Mac (paths 1 and 2): if Setup Assistant asks you to create
+an account, stop.** The Mac did not enroll. Iru creates `sable` itself, so an account prompt
+means Setup Assistant missed Iru. Don't create the account: hold the power button until startup
+options load, choose Options, then Recovery Assistant > Erase Mac, and start again. A Mac checks
+for Iru only once, early in Setup Assistant, and never again after setup finishes.
 
-The "Asset tag" sets the name. Trial: the slot (`trial1`) with **Sable Trial**, so the Mac
+In paths 1 and 2, the asset tag sets the name. Trial: the slot (`trial1`) with **Sable Trial**, so the Mac
 becomes `sable-trial1`. New hire: their first name (`jane`) with **Sable Onboard**, so the
 Mac becomes `sable-jane`; if a Mac already has that name, the first initial and last name
 (`jdoe`). Lowercase letters, digits and `-` only. The name shows on the login and lock screen.
@@ -115,7 +115,8 @@ Iru. The Mac must not get past the first Setup Assistant screens until Iru has i
 
 ### Not in Apple Business at all
 
-Only if Configurator can't add it:
+Only if Configurator can't add it. This is the one case where you create `sable` yourself, and
+Iru may not rename the Mac:
 
 1. Setup Assistant: create `sable` as above and log in. Set the name to `sable-<slot>` in
    System Settings > General > Sharing
