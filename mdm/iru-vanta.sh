@@ -55,8 +55,9 @@ if [ ! -x "$cli" ]; then
 
   # The installer reads this file to register the Mac, the same way Vanta's own script does.
   umask 077
-  printf '{"ACTIVATION_REQUESTED_NONCE":%s000,"AGENT_KEY":"%s","OWNER_EMAIL":"%s","NEEDS_OWNER":true,"REGION":"%s"}\n' \
-    "$(date +%s)" "$vanta_key" "$email" "$region" > "$conf"
+  config='{"ACTIVATION_REQUESTED_NONCE":%s000,"AGENT_KEY":"%s","OWNER_EMAIL":"%s","NEEDS_OWNER":true,"REGION":"%s"}\n'
+  # shellcheck disable=SC2059 # the format is the fixed string above
+  printf "$config" "$(date +%s)" "$vanta_key" "$email" "$region" > "$conf"
   chown root:wheel "$conf"
   chmod 600 "$conf"
   installer -pkg "$pkg" -target / >/dev/null

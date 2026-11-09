@@ -57,8 +57,7 @@ already runs the monitor is left alone. On Default Blueprint, a Mac without a `s
 and without the monitor is skipped (the item passes and says so); install the monitor on
 those by hand, since the script can't tell whose Mac it is. To undo:
 remove the item from the blueprints (Macs keep the monitor), and on a Mac run
-`sudo /usr/local/vanta/vanta-cli uninstall`. Add **EDR in Detect Mode** to Sable Onboard
-(Default Blueprint already has it). Sable Trial doesn't get it.
+`sudo /usr/local/vanta/vanta-cli uninstall`. Apple's XProtect is the antivirus Vanta sees; Sable doesn't license EDR.
 
 All three blueprints carry Sable's security settings (disk encryption, screen lock, OS
 updates); add the same to any new blueprint, such as **Sable Trial (non-technical)**. The
