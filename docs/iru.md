@@ -53,8 +53,9 @@ Vanta, but not XProtect, so a Mac with only Iru fails antivirus. `iru-vanta.sh` 
 monitor and registers it to `<asset tag>@sable.ai`, so asset tags must match the email's
 first part. The Vanta key goes only in the pasted Iru item (Vanta > Computers > Unmonitored >
 View setup instructions > Option 3, shown as VANTA_KEY), never in this repo. A Mac that
-already runs the monitor is left alone. On Default Blueprint, a Mac without a `sable-` name
-and without the monitor is skipped (the item passes and says so); install the monitor on
+already runs the monitor is left alone. A Mac with the `sable` account but no `sable-` name
+yet fails and retries, since Iru may not have renamed it. On Default Blueprint, an older Mac
+without the `sable` account, a `sable-` name or the monitor is skipped (the item passes and says so); install the monitor on
 those by hand, since the script can't tell whose Mac it is. To undo:
 remove the item from the blueprints (Macs keep the monitor), and on a Mac run
 `sudo /usr/local/vanta/vanta-cli uninstall`. Apple's XProtect is the antivirus Vanta sees; Sable doesn't license EDR.

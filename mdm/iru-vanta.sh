@@ -37,6 +37,8 @@ for key in LocalHostName HostName ComputerName; do
   case "$candidate" in sable-?*) name="$candidate"; break ;; esac
 done
 if [ -z "$name" ]; then
+  # A Mac Iru set up has the sable account; Iru may not have renamed it yet, so retry.
+  id sable >/dev/null 2>&1 && die "Iru hasn't named the Mac sable-<asset tag> yet; this retries at the next check-in"
   # Older Macs on Default Blueprint keep their own names; their owner can't be inferred.
   echo "skipped: the Mac isn't named sable-<asset tag>, so its owner is unknown; install Vanta Device Monitor by hand"
   exit 0

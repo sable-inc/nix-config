@@ -139,7 +139,8 @@ For each Mac:
    before telling anyone
 5. Also under **Custom Scripts**, "Sable: Vanta Device Monitor" shows **Pass**. Within a few
    hours, app.vanta.com > Computers lists the Mac with Antivirus passing. Check its owner
-   is the person's email (`<asset tag>@sable.ai`); if not, set the owner there
+   is `<asset tag>@sable.ai`: the hire's email, or the slot's for a trial (`trial1@sable.ai`).
+   If not, set the owner there
 
 The Mac is ready. Hand it over, or put it away until the trial or start date.
 
