@@ -36,7 +36,11 @@ for key in LocalHostName HostName ComputerName; do
   candidate="${candidate%%.*}"
   case "$candidate" in sable-?*) name="$candidate"; break ;; esac
 done
-[ -n "$name" ] || die "the Mac isn't named sable-<asset tag>, so its owner is unknown; set the asset tag in Iru (this retries at the next check-in)"
+if [ -z "$name" ]; then
+  # Older Macs on Default Blueprint keep their own names; their owner can't be inferred.
+  echo "skipped: the Mac isn't named sable-<asset tag>, so its owner is unknown; install Vanta Device Monitor by hand"
+  exit 0
+fi
 email="${name#sable-}@$domain"
 
 if [ ! -x "$cli" ]; then
@@ -58,8 +62,11 @@ if [ ! -x "$cli" ]; then
   installer -pkg "$pkg" -target / >/dev/null
 fi
 
-# Status 2 means running but not registered yet. Let the installer's own registration finish
-# first, then register directly; any failure exits non-zero so Iru retries next check-in.
+# Status 2 means running but not registered: let the installer's own registration finish
+# first, then register directly. Anything else non-zero gets one start. A failure exits
+# non-zero so Iru retries at the next check-in.
+code="$(monitor_status)"
+case "$code" in 0|2) ;; *) "$cli" start >/dev/null 2>&1 || true ;; esac
 if [ "$(monitor_status)" = 2 ]; then
   "$cli" check-registration --attempts=6 >/dev/null 2>&1 ||
     "$cli" register --secret="$vanta_key" --email="$email" >/dev/null

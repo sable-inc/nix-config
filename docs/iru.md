@@ -53,10 +53,12 @@ Vanta, but not XProtect, so a Mac with only Iru fails antivirus. `iru-vanta.sh` 
 monitor and registers it to `<asset tag>@sable.ai`, so asset tags must match the email's
 first part. The Vanta key goes only in the pasted Iru item (Vanta > Computers > Unmonitored >
 View setup instructions > Option 3, shown as VANTA_KEY), never in this repo. A Mac that
-already runs the monitor is left alone, so the item is safe on Default Blueprint too. To undo:
+already runs the monitor is left alone. On Default Blueprint, a Mac without a `sable-` name
+and without the monitor is skipped (the item passes and says so); install the monitor on
+those by hand, since the script can't tell whose Mac it is. To undo:
 remove the item from the blueprints (Macs keep the monitor), and on a Mac run
-`sudo /usr/local/vanta/vanta-cli uninstall`. Sable Onboard also gets **EDR in Detect Mode**,
-like Default Blueprint; Sable Trial doesn't.
+`sudo /usr/local/vanta/vanta-cli uninstall`. Add **EDR in Detect Mode** to Sable Onboard
+(Default Blueprint already has it). Sable Trial doesn't get it.
 
 All three blueprints carry Sable's security settings (disk encryption, screen lock, OS
 updates); add the same to any new blueprint, such as **Sable Trial (non-technical)**. The
@@ -95,9 +97,9 @@ options load, choose Options, then Recovery Assistant > Erase Mac, and start aga
 the reliable fix: Setup Assistant is where Iru creates `sable` and skips the screens.
 
 In paths 1 and 2, the asset tag sets the name. Trial: the slot (`trial1`) with **Sable Trial**, so the Mac
-becomes `sable-trial1`. New hire: their first name (`jane`) with **Sable Onboard**, so the
-Mac becomes `sable-jane`; if a Mac already has that name, the first initial and last name
-(`jdoe`). Lowercase letters, digits and `-` only. The name shows on the login and lock screen.
+becomes `sable-trial1`. New hire: their @sable.ai email before the @ (`jane` for jane@sable.ai, `jdoe` for
+jdoe@sable.ai) with **Sable Onboard**, so the Mac becomes `sable-jane`. Vanta registers the
+Mac to `<asset tag>@sable.ai`, so the tag must match the email. Lowercase letters, digits and `-` only. The name shows on the login and lock screen.
 
 ### 1. Bought through Apple Business (the normal way)
 
