@@ -29,9 +29,11 @@ The background (why it works this way) is in `docs/iru.md`. You don't need it to
 | The Mac is for | Iru blueprint | Asset tag | The Mac will be called |
 |:--|:--|:--|:--|
 | A trial laptop | **Sable Trial** | the slot: `trial1`, `trial2`, `trial3` (or the next free number) | `sable-trial1` |
-| A new hire | **Sable Onboard** | their first name, lowercase: `jane`. If a Mac already has that name: first initial + last name, `jdoe` | `sable-jane` |
+| A new hire | **Sable Onboard** | their @sable.ai email before the @: `jane` for jane@sable.ai, `jdoe` for jdoe@sable.ai | `sable-<asset tag>`: `sable-jane` |
 
-Lowercase letters, digits and `-` only. No spaces, no capitals.
+Lowercase letters, digits and `-` only. No spaces, no capitals. The asset tag must be the
+email's first part: Vanta registers the Mac to `<asset tag>@sable.ai` (the slot's email for a
+trial, such as trial1@sable.ai).
 
 ## Part B. Where did the Mac come from?
 
@@ -135,6 +137,10 @@ For each Mac:
    Chrome, Slack, Orca, Cursor and the rest
 4. FileVault may show **Error** in Iru for the first hour. Check again after the next sync
    before telling anyone
+5. Also under **Custom Scripts**, "Sable: Vanta Device Monitor" shows **Pass**. Within a few
+   hours, app.vanta.com > Computers lists the Mac with Antivirus passing. Check its owner
+   is `<asset tag>@sable.ai`: the hire's email, or the slot's for a trial (`trial1@sable.ai`).
+   If not, set the owner there
 
 The Mac is ready. Hand it over, or put it away until the trial or start date.
 
@@ -188,6 +194,8 @@ the menu bar choose **Recovery Assistant > Erase Mac**.
 | Mac in Iru says "Awaiting enrollment" | Normal before Part E | Nothing; it changes once the Mac reaches Remote Management |
 | Wrong name after an hour (Parts D and E, not Part I) | Iru's rename didn't apply | Iru > the device > **⋯** (top right) > **Set device name** > `sable-<asset tag>` |
 | Bootstrap still **Pending** and **Last check-in** is old (more than 20 minutes) | The Mac is asleep, at the login screen, or off the network | Plug it in, open the lid, log in as `sable`, check Wi-Fi. Within a few minutes Last check-in updates and the bootstrap starts |
+| "Sable: Vanta Device Monitor" Failed | Its output says why: usually the Vanta key is missing from the Iru item, or the Mac isn't named `sable-<asset tag>` yet | Send Matthew the output. A missing key: he fills it in the Iru item. A missing name: fix the asset tag (Part D) |
+| Wrong or no owner in Vanta | The asset tag isn't the email's first part | Set the owner in app.vanta.com > Computers, and fix the asset tag in Iru |
 | Bootstrap shows Failed | Something in the install | Leave the Mac on and logged in; send Matthew the device page link. The log is `/var/log/sable-bootstrap.log` on the Mac |
 | FileVault shows Error | Usually just early | Check again after the next sync |
 | `sable-setup` says "stopped: ..." | A missing input or sign-in | Read the line; it says what's missing. Send it to the Onboarding bot or Matthew |
