@@ -23,46 +23,47 @@ die() { echo "FAIL: $*"; exit 1; }
 
 [ -n "$vanta_key" ] || die "vanta_key is empty: paste the company Vanta key into this Iru item"
 
+monitor_status() { local code=0; "$cli" status >/dev/null 2>&1 || code=$?; echo "$code"; }
+
+if [ -x "$cli" ] && [ "$(monitor_status)" = 0 ]; then
+  echo "Vanta Device Monitor is already running"
+  exit 0
+fi
+
 name=""
 for key in LocalHostName HostName ComputerName; do
   candidate="$(scutil --get "$key" 2>/dev/null || true)"
   candidate="${candidate%%.*}"
   case "$candidate" in sable-?*) name="$candidate"; break ;; esac
 done
-[ -n "$name" ] || die "the Mac isn't named sable-<asset tag> yet, so its owner is unknown; set the asset tag in Iru (this retries at the next check-in)"
+[ -n "$name" ] || die "the Mac isn't named sable-<asset tag>, so its owner is unknown; set the asset tag in Iru (this retries at the next check-in)"
 email="${name#sable-}@$domain"
 
-if [ -x "$cli" ]; then
-  status=0
-  "$cli" status >/dev/null 2>&1 || status=$?
-  case "$status" in
-    0) echo "Vanta Device Monitor is already running"; exit 0 ;;
-    2) "$cli" register --secret="$vanta_key" --email="$email" >/dev/null
-       echo "registered the installed Vanta Device Monitor to $email"; exit 0 ;;
-    *) die "Vanta Device Monitor is installed but not running (vanta-cli status exited $status); run: sudo $cli doctor" ;;
-  esac
+if [ ! -x "$cli" ]; then
+  dir="$(mktemp -d)"
+  trap 'rm -rf "$dir"' EXIT
+  pkg="$dir/vanta.pkg"
+  curl --proto '=https' --tlsv1.2 -fsSL -o "$pkg" "$pkg_url"
+  [ "$(shasum -a 256 "$pkg" | cut -d' ' -f1)" = "$pkg_sha256" ] || die "the Vanta package checksum doesn't match"
+  signature="$(pkgutil --check-signature "$pkg")"
+  grep -qF "$developer_id" <<<"$signature" || die "the Vanta package isn't signed by $developer_id"
+  tr -d ' \n' <<<"$signature" | grep -qF "SHA256Fingerprint:$cert_sha256" || die "the Vanta signing certificate doesn't match"
+
+  # The installer reads this file to register the Mac, the same way Vanta's own script does.
+  umask 077
+  printf '{"ACTIVATION_REQUESTED_NONCE":%s000,"AGENT_KEY":"%s","OWNER_EMAIL":"%s","NEEDS_OWNER":true,"REGION":"%s"}\n' \
+    "$(date +%s)" "$vanta_key" "$email" "$region" > "$conf"
+  chown root:wheel "$conf"
+  chmod 600 "$conf"
+  installer -pkg "$pkg" -target / >/dev/null
 fi
 
-dir="$(mktemp -d)"
-trap 'rm -rf "$dir"' EXIT
-pkg="$dir/vanta.pkg"
-curl --proto '=https' --tlsv1.2 -fsSL -o "$pkg" "$pkg_url"
-[ "$(shasum -a 256 "$pkg" | cut -d' ' -f1)" = "$pkg_sha256" ] || die "the Vanta package checksum doesn't match"
-signature="$(pkgutil --check-signature "$pkg")"
-grep -qF "$developer_id" <<<"$signature" || die "the Vanta package isn't signed by $developer_id"
-tr -d ' \n' <<<"$signature" | grep -qF "SHA256Fingerprint:$cert_sha256" || die "the Vanta signing certificate doesn't match"
-
-# The installer reads this file to register the Mac, the same way Vanta's own script does.
-umask 077
-printf '{"ACTIVATION_REQUESTED_NONCE":%s000,"AGENT_KEY":"%s","OWNER_EMAIL":"%s","NEEDS_OWNER":true,"REGION":"%s"}\n' \
-  "$(date +%s)" "$vanta_key" "$email" "$region" > "$conf"
-chown root:wheel "$conf"
-chmod 600 "$conf"
-installer -pkg "$pkg" -target / >/dev/null
-
-status=0
-"$cli" status >/dev/null 2>&1 || status=$?
-case "$status" in
-  0|2) echo "installed Vanta Device Monitor for $email" ;;
-  *) die "Vanta Device Monitor installed but isn't running (vanta-cli status exited $status); run: sudo $cli doctor" ;;
-esac
+# Status 2 means running but not registered yet. Let the installer's own registration finish
+# first, then register directly; any failure exits non-zero so Iru retries next check-in.
+if [ "$(monitor_status)" = 2 ]; then
+  "$cli" check-registration --attempts=6 >/dev/null 2>&1 ||
+    "$cli" register --secret="$vanta_key" --email="$email" >/dev/null
+fi
+code="$(monitor_status)"
+[ "$code" = 0 ] || die "Vanta Device Monitor isn't running and registered (vanta-cli status exited $code); run: sudo $cli doctor"
+echo "Vanta Device Monitor is running, registered to $email"
