@@ -49,6 +49,9 @@ exec > >(tee -a "$log_file") 2>&1
 [ "$(uname -m)" = "arm64" ] || die "Apple silicon only"
 id "$user" >/dev/null 2>&1 || die "user $user does not exist; create it in Setup Assistant or with Iru first"
 local_nix=/etc/nix-darwin/local.nix
+# Commit that last built and switched. A hostname rewrite replaces this with "pending <name>"
+# until build-switch succeeds, so a failed switch is not treated as already done.
+built_file=/var/db/sable-nix-config-built
 if [ "$update" = 1 ]; then
   # Before the first install finishes there is nothing to update; the bootstrap item does that.
   [ -f "$local_nix" ] && [ -L /run/current-system ] || { log "update: not installed yet, skipping"; exit 0; }
@@ -58,16 +61,24 @@ if [ "$update" = 1 ]; then
 fi
 # This run holds the lock (see the top), so clearing a leftover grant can't revoke another run's.
 rm -f "$sudoers_file"
-# Iru's Device Name item may set HostName before LocalHostName, so take the first sable- name.
+# Iru's Device Name item may set HostName before LocalHostName. Prefer a sable- name that is
+# not doubled (sable-sable-…): during that window LocalHostName can still be the old tag while
+# HostName is already corrected. If the only sable- name is doubled, return it so the caller
+# refuses the asset tag instead of writing it.
 sable_name() {
-  local key name
+  local key name doubled=""
   for key in LocalHostName HostName ComputerName; do
     name="$(scutil --get "$key" 2>/dev/null || true)"
     name="${name%%.*}"
     case "$name" in
+      sable-sable-*) [ -n "$doubled" ] || doubled="$name" ;;
       sable-*) printf '%s' "$name"; return 0 ;;
     esac
   done
+  if [ -n "$doubled" ]; then
+    printf '%s' "$doubled"
+    return 0
+  fi
   return 1
 }
 if [ -z "$host_name" ]; then
@@ -79,7 +90,30 @@ if [ -z "$host_name" ]; then
   done
   [ -n "$host_name" ] || die "the Mac is still named '$(scutil --get LocalHostName 2>/dev/null)', not sable-<asset tag>; check the asset tag and Device Name item in Iru (Iru reruns this script at the next check-in)"
 fi
+# --update reads the hostname from local.nix. If that file still has the doubled tag and Iru's
+# live name is the single-prefix form, adopt the live name so the rewrite below can fix the file.
+if [ "$update" = 1 ]; then
+  case "$host_name" in
+    sable-sable-*)
+      live="$(sable_name || true)"
+      case "$live" in
+        sable-sable-* | "") ;;
+        sable-*)
+          if [ "$host_name" = "sable-$live" ]; then
+            log "update: $local_nix hostname $host_name is a doubled asset tag; Iru's name is $live"
+            host_name="$live"
+          fi
+          ;;
+      esac
+      ;;
+  esac
+fi
 case "$host_name" in
+  sable-sable-*)
+    # Iru names the Mac sable- plus the asset tag. A tag of sable-xavier becomes sable-sable-xavier
+    # and would be written into local.nix and registered in Vanta as the wrong owner.
+    die "asset tag must be the email before the @ (e.g. xavier), not ${host_name#sable-}; fix the asset tag in Iru"
+    ;;
   sable-*) ;;
   *) die "hostname must start with sable- (pass --hostname or set the device name in Iru), got '$host_name'" ;;
 esac
@@ -130,12 +164,71 @@ else
   nix_works || die "nix did not install"
 fi
 
+# Saved hostname from the line init writes. Empty when the line is missing or not double-quoted.
+local_host() {
+  sed -n 's/^[[:space:]]*networking\.hostName = "\([^"]*\)";.*/\1/p' "$1"
+}
+
+# Replace only networking.hostName when it is exactly sable- plus the hostname Iru has now
+# (sable-sable-xavier -> sable-xavier) and the profile already matches. One assignment, checked
+# before the file is swapped, so a tag typo can be corrected without erasing the Mac.
+rewrite_doubled_hostname() {
+  local from="$1" to="$2" tmp new owner group mode got count
+  case "$to" in
+    ""|*[!A-Za-z0-9-]*) return 1 ;;
+  esac
+  [ "$from" = "sable-$to" ] || return 1
+  count="$(grep -F -c "networking.hostName = \"${from}\";" "$local_nix" || true)"
+  [ "$count" = 1 ] || return 1
+  tmp="$(mktemp)"
+  new="$local_nix.hostname-new"
+  rm -f "$new"
+  if ! /usr/bin/perl -pe 'BEGIN { $from = shift; $to = shift } s/\Q$from/$to/' \
+    "networking.hostName = \"${from}\";" \
+    "networking.hostName = \"${to}\";" \
+    "$local_nix" > "$tmp"; then
+    rm -f "$tmp"
+    return 1
+  fi
+  got="$(local_host "$tmp")"
+  if [ "$got" != "$to" ] || grep -F -q "networking.hostName = \"${from}\";" "$tmp"; then
+    rm -f "$tmp"
+    return 1
+  fi
+  owner="$(stat -f %Su "$local_nix")" || { rm -f "$tmp"; return 1; }
+  group="$(stat -f %Sg "$local_nix")" || { rm -f "$tmp"; return 1; }
+  mode="$(stat -f %OLp "$local_nix")" || { rm -f "$tmp"; return 1; }
+  cp "$tmp" "$new" || { rm -f "$tmp" "$new"; return 1; }
+  rm -f "$tmp"
+  chown "$owner:$group" "$new" || { rm -f "$new"; return 1; }
+  chmod "$mode" "$new" || { rm -f "$new"; return 1; }
+  mv "$new" "$local_nix" || { rm -f "$new"; return 1; }
+}
+
 if [ -f "$local_nix" ]; then
-  if ! grep -Eq "^[[:space:]]*sable\.profile = \"$profile\";" "$local_nix" ||
-    ! grep -Eq "^[[:space:]]*networking\.hostName = \"$host_name\";" "$local_nix"; then
+  existing_host="$(local_host "$local_nix")"
+  profile_matches=0
+  grep -Eq "^[[:space:]]*sable\.profile = \"$profile\";" "$local_nix" && profile_matches=1
+  if [ "$profile_matches" = 1 ] && [ "$existing_host" = "$host_name" ]; then
+    log "nix-config: present with profile $profile"
+  elif [ "$profile_matches" = 1 ] && [ "$existing_host" = "sable-$host_name" ]; then
+    # Drop the "already built" marker before rewriting. build-switch writes the commit back
+    # only after it succeeds, so a failed switch cannot look already done next --update.
+    old_marker="$(cat "$built_file" 2>/dev/null || true)"
+    printf 'pending %s\n' "$host_name" > "$built_file"
+    if rewrite_doubled_hostname "$existing_host" "$host_name"; then
+      log "nix-config: rewrote hostname in $local_nix from $existing_host to $host_name"
+    else
+      if [ -n "$old_marker" ]; then
+        printf '%s\n' "$old_marker" > "$built_file"
+      else
+        rm -f "$built_file"
+      fi
+      die "$local_nix has hostname $existing_host and was not rewritten. The profile matches, so on the Mac run: sudo perl -pi -e 's/networking.hostName = \"$existing_host\";/networking.hostName = \"$host_name\";/' $local_nix && sudo chown $user $local_nix"
+    fi
+  else
     die "$local_nix exists with a different profile or hostname; fix it by hand or erase the Mac"
   fi
-  log "nix-config: present with profile $profile"
 else
   log "nix-config: running init"
   flake="github:sable-inc/nix-config"
@@ -156,8 +249,7 @@ if [ "$console_user" != "$user" ]; then
 fi
 
 cd /etc/nix-darwin
-# The last nix-config commit that built and switched; a failed build is retried next run.
-built_file=/var/db/sable-nix-config-built
+# A failed build is retried next run. The marker is the commit only after build-switch succeeds.
 if [ "$update" = 1 ]; then
   # Build exactly the released commit: a local fleet branch reset to origin/fleet. A checkout
   # that would overwrite local changes fails instead.

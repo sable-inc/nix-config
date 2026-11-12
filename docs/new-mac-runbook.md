@@ -33,7 +33,8 @@ The background (why it works this way) is in `docs/iru.md`. You don't need it to
 
 Lowercase letters, digits and `-` only. No spaces, no capitals. The asset tag must be the
 email's first part: Vanta registers the Mac to `<asset tag>@sable.ai` (the slot's email for a
-trial, such as trial1@sable.ai).
+trial, such as trial1@sable.ai). Never type `sable-` in the asset tag. Iru adds that itself.
+`xavier` is right; `sable-xavier` is wrong, and the Mac would be named `sable-sable-xavier`.
 
 ## Part B. Where did the Mac come from?
 
@@ -193,6 +194,9 @@ the menu bar choose **Recovery Assistant > Erase Mac**.
 | Serial not in Iru after an hour | Apple Business isn't pointing it at Iru | business.apple.com > Devices > Inventory > the Mac > **Assign Device Management** > Iru, then Iru > **Fetch devices** |
 | Mac in Iru says "Awaiting enrollment" | Normal before Part E | Nothing; it changes once the Mac reaches Remote Management |
 | Wrong name after an hour (Parts D and E, not Part I) | Iru's rename didn't apply | Iru > the device > **⋯** (top right) > **Set device name** > `sable-<asset tag>` |
+| Bootstrap or "Sable: Vanta Device Monitor" Failed, output says `asset tag must be the email before the @` | The asset tag includes `sable-` (the Mac is named `sable-sable-…`) | Iru > the device > **Edit device details** > **Edit asset tag** > type only the email before the @ (`xavier`, not `sable-xavier`) > save. On a hand-enrolled Mac (Part I), also set System Settings > General > Sharing to `sable-` plus that tag. Leave the Mac logged in. The next bootstrap corrects a `local.nix` that already says `sable-sable-xavier` when the profile matches. If Vanta's owner is `sable-xavier@sable.ai`, set it to the real email in app.vanta.com > Computers. Details: `docs/iru.md`, "Asset tag typed with a sable- prefix" |
+| Bootstrap Failed, output says `local.nix has hostname` and `was not rewritten`, and says the profile matches | The profile is right, but the doubled hostname line was not rewritten | On the Mac, with the real names: `sudo perl -pi -e 's/networking.hostName = "sable-sable-xavier";/networking.hostName = "sable-xavier";/' /etc/nix-darwin/local.nix` then `sudo chown sable /etc/nix-darwin/local.nix`. That edits only that hostname line |
+| Bootstrap Failed, `local.nix exists with a different profile or hostname` | The file's profile or hostname is some other mismatch | Don't edit the file. Send Matthew `/var/log/sable-bootstrap.log` |
 | Bootstrap still **Pending** and **Last check-in** is old (more than 20 minutes) | The Mac is asleep, at the login screen, or off the network | Plug it in, open the lid, log in as `sable`, check Wi-Fi. Within a few minutes Last check-in updates and the bootstrap starts |
 | "Sable: Vanta Device Monitor" Failed | Its output says why: usually the Vanta key is missing from the Iru item, or the Mac isn't named `sable-<asset tag>` yet | Send Matthew the output. A missing key: he fills it in the Iru item. A missing name: fix the asset tag (Part D) |
 | Wrong or no owner in Vanta | The asset tag isn't the email's first part | Set the owner in app.vanta.com > Computers, and fix the asset tag in Iru |
