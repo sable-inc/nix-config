@@ -2,7 +2,8 @@
 # Iru custom script, run once per device (Iru retries it at each check-in until it exits 0).
 # Installs Vanta Device Monitor and registers it to <asset tag>@sable.ai: Iru names the Mac
 # sable-<asset tag>, and asset tags are the part of the person's (or trial slot's) email
-# before @. Same file for every blueprint.
+# before @. The tag must not itself start with sable- (the Mac would be sable-sable-…).
+# This script refuses that before it registers anyone. Same file for every blueprint.
 #
 # Paste the company Vanta key into vanta_key in the Iru item only. Never commit it.
 # Vanta > Computers > Unmonitored > View setup instructions > Option 3 shows it as VANTA_KEY.
@@ -25,17 +26,22 @@ die() { echo "FAIL: $*"; exit 1; }
 
 monitor_status() { local code=0; "$cli" status >/dev/null 2>&1 || code=$?; echo "$code"; }
 
-if [ -x "$cli" ] && [ "$(monitor_status)" = 0 ]; then
-  echo "Vanta Device Monitor is already running"
-  exit 0
-fi
-
 name=""
 for key in LocalHostName HostName ComputerName; do
   candidate="$(scutil --get "$key" 2>/dev/null || true)"
   candidate="${candidate%%.*}"
   case "$candidate" in sable-?*) name="$candidate"; break ;; esac
 done
+case "$name" in
+  sable-sable-*)
+    die "asset tag must be the email before the @ (e.g. xavier), not ${name#sable-}; fix the asset tag in Iru"
+    ;;
+esac
+# After the name check, so a doubled asset tag fails before this script registers anyone.
+if [ -x "$cli" ] && [ "$(monitor_status)" = 0 ]; then
+  echo "Vanta Device Monitor is already running"
+  exit 0
+fi
 if [ -z "$name" ]; then
   # A Mac Iru set up has the sable account; Iru may not have renamed it yet, so retry.
   id sable >/dev/null 2>&1 && die "Iru hasn't named the Mac sable-<asset tag> yet; this retries at the next check-in"

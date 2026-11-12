@@ -50,10 +50,13 @@ first install hasn't finished, and never runs at the same time as the bootstrap.
 
 Vanta's antivirus test needs Vanta Device Monitor: Iru reports encryption and screen lock to
 Vanta, but not XProtect, so a Mac with only Iru fails antivirus. `iru-vanta.sh` installs the
-monitor and registers it to `<asset tag>@sable.ai`, so asset tags must match the email's
-first part. The Vanta key goes only in the pasted Iru item (Vanta > Computers > Unmonitored >
+monitor and registers it to `<asset tag>@sable.ai`. The asset tag is the email's first
+part and nothing else: never type `sable-` in the tag. Iru already names the Mac `sable-` plus
+the tag, so a tag of `sable-xavier` names the Mac `sable-sable-xavier` and would register
+Vanta to `sable-xavier@sable.ai`. The bootstrap and `iru-vanta.sh` exit with an error instead,
+before they write `local.nix` or register Vanta. The Vanta key goes only in the pasted Iru item (Vanta > Computers > Unmonitored >
 View setup instructions > Option 3, shown as VANTA_KEY), never in this repo. A Mac that
-already runs the monitor is left alone. A Mac with the `sable` account but no `sable-` name
+already runs the monitor is left alone, unless the name starts with `sable-sable-`: that still fails until the asset tag is fixed. A Mac with the `sable` account but no `sable-` name
 yet fails and retries, since Iru may not have renamed it. On Default Blueprint, an older Mac
 without the `sable` account, a `sable-` name or the monitor is skipped (the item passes and says so); install the monitor on
 those by hand, since the script can't tell whose Mac it is. To undo:
@@ -99,7 +102,8 @@ the reliable fix: Setup Assistant is where Iru creates `sable` and skips the scr
 In paths 1 and 2, the asset tag sets the name. Trial: the slot (`trial1`) with **Sable Trial**, so the Mac
 becomes `sable-trial1`. New hire: their @sable.ai email before the @ (`jane` for jane@sable.ai, `jdoe` for
 jdoe@sable.ai) with **Sable Onboard**, so the Mac becomes `sable-jane`. Vanta registers the
-Mac to `<asset tag>@sable.ai`, so the tag must match the email. Lowercase letters, digits and `-` only. The name shows on the login and lock screen.
+Mac to `<asset tag>@sable.ai`, so the tag must be the email before the @ and must not include
+`sable-` (`xavier`, never `sable-xavier`). Lowercase letters, digits and `-` only. The name shows on the login and lock screen.
 
 ### 1. Bought through Apple Business (the normal way)
 
@@ -155,6 +159,41 @@ Then, either way:
    (`docs/claude-setup-v1.md`, section C)
 
 The bootstrap log is also on the Mac at `/var/log/sable-bootstrap.log`.
+
+## Asset tag typed with a sable- prefix
+
+Iru's device name is `sable-` plus the asset tag. The tag is the email before the @ (`xavier`
+for xavier@sable.ai), never `sable-xavier`. On Nov 11, 2026 a tag of `sable-xavier` named the
+Mac `sable-sable-xavier`, registered Vanta to `sable-xavier@sable.ai`, and wrote that hostname
+into `/etc/nix-darwin/local.nix`. Later correcting the tag made every bootstrap retry fail,
+because `local.nix` no longer matched the Mac.
+
+The bootstrap and Vanta Device Monitor now stop first, before writing `local.nix` or
+registering Vanta:
+
+```
+FAIL: asset tag must be the email before the @ (e.g. xavier), not sable-xavier; fix the asset tag in Iru
+```
+
+1. In Iru: Devices > the Mac > **Edit device details** > **Edit asset tag**. Type only the
+   email's first part (`xavier`) and save. Iru renames the Mac to `sable-xavier`
+2. Leave the Mac logged in as `sable` and plugged in. The next bootstrap or update check-in
+   continues. If `local.nix` already has hostname `sable-sable-xavier` and the same profile,
+   that run rewrites only the `networking.hostName` line to `sable-xavier` and goes on. It
+   does this only when the saved hostname is exactly `sable-` plus the name Iru has now. Any
+   other mismatch still fails with `local.nix exists with a different profile or hostname`
+3. If Vanta already registered the Mac, the owner is the wrong address
+   (`sable-xavier@sable.ai`). In app.vanta.com > Computers, set the owner to the real email
+
+To fix `local.nix` by hand when that rewrite did not run (the line is not the usual
+assignment, or the profile differs), on the Mac, with the real names:
+
+```sh
+sudo perl -pi -e 's/networking.hostName = "sable-sable-xavier";/networking.hostName = "sable-xavier";/' /etc/nix-darwin/local.nix
+sudo chown sable /etc/nix-darwin/local.nix
+```
+
+Then leave it logged in so the bootstrap retries. This does not need an erase.
 
 The bootstrap temporarily grants `sable` passwordless sudo. Normal exits and handled signals
 remove the grant. If cleanup cannot run (SIGKILL or reboot), the grant stops authorizing new
