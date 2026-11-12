@@ -49,6 +49,9 @@ exec > >(tee -a "$log_file") 2>&1
 [ "$(uname -m)" = "arm64" ] || die "Apple silicon only"
 id "$user" >/dev/null 2>&1 || die "user $user does not exist; create it in Setup Assistant or with Iru first"
 local_nix=/etc/nix-darwin/local.nix
+# Commit that last built and switched. A hostname rewrite replaces this with "pending <name>"
+# until build-switch succeeds, so a failed switch is not treated as already done.
+built_file=/var/db/sable-nix-config-built
 if [ "$update" = 1 ]; then
   # Before the first install finishes there is nothing to update; the bootstrap item does that.
   [ -f "$local_nix" ] && [ -L /run/current-system ] || { log "update: not installed yet, skipping"; exit 0; }
@@ -58,16 +61,24 @@ if [ "$update" = 1 ]; then
 fi
 # This run holds the lock (see the top), so clearing a leftover grant can't revoke another run's.
 rm -f "$sudoers_file"
-# Iru's Device Name item may set HostName before LocalHostName, so take the first sable- name.
+# Iru's Device Name item may set HostName before LocalHostName. Prefer a sable- name that is
+# not doubled (sable-sable-…): during that window LocalHostName can still be the old tag while
+# HostName is already corrected. If the only sable- name is doubled, return it so the caller
+# refuses the asset tag instead of writing it.
 sable_name() {
-  local key name
+  local key name doubled=""
   for key in LocalHostName HostName ComputerName; do
     name="$(scutil --get "$key" 2>/dev/null || true)"
     name="${name%%.*}"
     case "$name" in
+      sable-sable-*) [ -n "$doubled" ] || doubled="$name" ;;
       sable-*) printf '%s' "$name"; return 0 ;;
     esac
   done
+  if [ -n "$doubled" ]; then
+    printf '%s' "$doubled"
+    return 0
+  fi
   return 1
 }
 if [ -z "$host_name" ]; then
@@ -194,21 +205,27 @@ rewrite_doubled_hostname() {
   mv "$new" "$local_nix" || { rm -f "$new"; return 1; }
 }
 
-rewrote=0
 if [ -f "$local_nix" ]; then
   existing_host="$(local_host "$local_nix")"
   profile_matches=0
   grep -Eq "^[[:space:]]*sable\.profile = \"$profile\";" "$local_nix" && profile_matches=1
   if [ "$profile_matches" = 1 ] && [ "$existing_host" = "$host_name" ]; then
     log "nix-config: present with profile $profile"
-  elif [ "$profile_matches" = 1 ] && [ "$existing_host" = "sable-$host_name" ] &&
-    rewrite_doubled_hostname "$existing_host" "$host_name"; then
-    rewrote=1
-    log "nix-config: rewrote hostname in $local_nix from $existing_host to $host_name"
-  elif [ "$existing_host" = "sable-$host_name" ]; then
-    profile_note=""
-    [ "$profile_matches" = 1 ] || profile_note=" The profile in the file is not $profile; this command changes only the hostname."
-    die "$local_nix has hostname $existing_host and was not rewritten.${profile_note} On the Mac run: sudo perl -pi -e 's/networking.hostName = \"$existing_host\";/networking.hostName = \"$host_name\";/' $local_nix && sudo chown $user $local_nix"
+  elif [ "$profile_matches" = 1 ] && [ "$existing_host" = "sable-$host_name" ]; then
+    # Drop the "already built" marker before rewriting. build-switch writes the commit back
+    # only after it succeeds, so a failed switch cannot look already done next --update.
+    old_marker="$(cat "$built_file" 2>/dev/null || true)"
+    printf 'pending %s\n' "$host_name" > "$built_file"
+    if rewrite_doubled_hostname "$existing_host" "$host_name"; then
+      log "nix-config: rewrote hostname in $local_nix from $existing_host to $host_name"
+    else
+      if [ -n "$old_marker" ]; then
+        printf '%s\n' "$old_marker" > "$built_file"
+      else
+        rm -f "$built_file"
+      fi
+      die "$local_nix has hostname $existing_host and was not rewritten. The profile matches, so on the Mac run: sudo perl -pi -e 's/networking.hostName = \"$existing_host\";/networking.hostName = \"$host_name\";/' $local_nix && sudo chown $user $local_nix"
+    fi
   else
     die "$local_nix exists with a different profile or hostname; fix it by hand or erase the Mac"
   fi
@@ -232,8 +249,7 @@ if [ "$console_user" != "$user" ]; then
 fi
 
 cd /etc/nix-darwin
-# The last nix-config commit that built and switched; a failed build is retried next run.
-built_file=/var/db/sable-nix-config-built
+# A failed build is retried next run. The marker is the commit only after build-switch succeeds.
 if [ "$update" = 1 ]; then
   # Build exactly the released commit: a local fleet branch reset to origin/fleet. A checkout
   # that would overwrite local changes fails instead.
@@ -247,7 +263,7 @@ else
   as_user git pull --ff-only --quiet || die "could not update /etc/nix-darwin (local changes?); fix by hand with git status there"
 fi
 head="$(as_user git rev-parse HEAD)"
-if [ "$update" = 1 ] && [ "$rewrote" = 0 ] && [ "$(cat "$built_file" 2>/dev/null)" = "$head" ]; then
+if [ "$update" = 1 ] && [ "$(cat "$built_file" 2>/dev/null)" = "$head" ]; then
   log "update: already built ${head:0:7}, nothing to do"
   exit 0
 fi
