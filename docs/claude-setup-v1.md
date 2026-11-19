@@ -6,7 +6,9 @@ For the office person setting up a Sable trial laptop. Covers:
 - **B. Reset:** an existing trial laptop gets the next candidate. Erase it first (below), then
   follow A
 - **C. New-hire Mac:** Iru does steps 2-6 on the **Sable Onboard** blueprint
-  (`docs/iru.md`). Without Iru, follow hand steps 1-6 with `--profile onboard` and the
+  (`docs/iru.md`, "ADE preflight (required before anyone continues Setup Assistant)").
+  Do that before anyone continues Setup Assistant. Without Iru, follow hand steps 1-6
+  with `--profile onboard` and the
   person's own hostname (`--hostname sable-<name>`). Then the hire signs in to their apps and
   runs `sable-setup` (section C below). Don't store the FileVault key by hand; Iru escrows it
 
@@ -116,6 +118,8 @@ output.
 
 ## C. New-hire Mac, day one
 
+When Iru enrolls the Mac, the ADE preflight has to pass before anyone continues Setup
+Assistant (`docs/iru.md`, "ADE preflight (required before anyone continues Setup Assistant)").
 After Iru's install (or hand steps 1-6 with `--profile onboard`):
 
 1. The hire changes the `sable` password to their own: System Settings > Users & Groups.
