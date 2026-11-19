@@ -9,10 +9,14 @@ The background (why it works this way) is in `docs/iru.md`. You don't need it to
 ## The three rules
 
 1. **Never create an account on the Mac.** Iru creates the `sable` account itself. If the Mac
-   asks you to create an account, enrollment failed: stop and see "If something goes wrong".
-   (The only exception is Part I, used only when Matthew says so)
-2. **Don't go past the Country or Region screen until Iru lists the Mac** (Part D). Turning it
-   on is fine; Part C even needs it on. Going further before Iru has it is what breaks setup
+   asks you to create an account, or to sign in to an Apple Account, enrollment failed: stop
+   and see "If something goes wrong". (The only exception is Part I, used only when Matthew
+   says so)
+2. **Don't continue Setup Assistant until the ADE preflight passes** (`docs/iru.md`,
+   "ADE preflight (required before anyone continues Setup Assistant)"). Turning it on is fine;
+   Part C even needs it on. Stop on **Select Your Country or Region** until Part D shows the
+   assignment. If the Mac reached Wi-Fi before that assignment, or Iru already had an
+   enrollment for it, the preflight says to erase it first. Listing the serial is not enough.
 3. **Never erase a Mac without Matthew's OK** on that exact Mac (its serial number)
 
 ## What you need
@@ -98,7 +102,10 @@ For each Mac:
    your blueprint under **Enroll to** and your tag under **Asset tag**. Check the
    **ADE Library Item** column says "Sable: Setup Assistant (sable account, skip all screens)"
 5. **Enrollment status** says **Awaiting enrollment**. That is correct: Iru is waiting for the
-   Mac. It changes to **Enrolled** during Part E
+   Mac. It changes to **Enrolled** during Part E. Before Part E, finish the ADE preflight in
+   `docs/iru.md` ("ADE preflight (required before anyone continues Setup Assistant)"). The
+   blueprint and asset tag are not enough if this Mac reached Wi-Fi before the assignment, or
+   Iru already has an older enrollment for the serial.
 
 ## Part E. At the Mac
 
@@ -113,10 +120,13 @@ For each Mac:
    - **Wi-Fi:** pick the office network, type its password, **Continue**
 5. **Remote Management** appears ("Sable can automatically configure your computer"). Click
    **Continue**. This is the screen that proves it worked. If you never see it, and instead
-   see "Create a Computer Account", stop: see "If something goes wrong"
-6. Every other screen (Apple Account, Location Services, Screen Time, Siri, FileVault and so
+   see "Create a Computer Account" or an Apple Account sign-in, stop: see "If something goes
+   wrong"
+6. Every other screen (Location Services, Screen Time, Siri, FileVault and so
    on) is skipped by Iru. If one still appears, click **Continue**, **Not Now** or
-   **Set Up Later**. Never create an account, never sign in to an Apple Account
+   **Set Up Later**. Never create an account. An Apple Account prompt is not one of these
+   screens. Stop, as in step 5. The fix is an erase, not a restart and not filling in the
+   screens (`docs/iru.md`, "ADE preflight (required before anyone continues Setup Assistant)").
 7. The login screen shows the Mac's name (`sable-trial1` or `sable-jane`) and the user
    **sable**. If the name is still something like "MacBook Pro", that's fine for now; Iru
    renames it within the hour
@@ -188,7 +198,7 @@ the menu bar choose **Recovery Assistant > Erase Mac**.
 
 | You see | It means | Do this |
 |:--|:--|:--|
-| "Create a Computer Account" during setup | Iru didn't have the Mac yet when it asked | Don't create it. Check Part D shows the serial with the right blueprint, then erase by hand (Part H, last paragraph, with Matthew's OK) and go to Part E |
+| "Create a Computer Account", or an Apple Account sign-in, during setup | The Mac did not get Sable's enrollment profile. Iru's assignment was missing, or the Mac fetched a stale profile before that assignment | Don't create an account and don't sign in. Do the ADE preflight (`docs/iru.md`, "ADE preflight (required before anyone continues Setup Assistant)"), then erase by hand (Part H, last paragraph, with Matthew's OK) and go to Part E |
 | No Remote Management screen | Same | Same |
 | Configurator errors on the iPhone | Usually it worked anyway | Check business.apple.com > Devices for the serial before retrying |
 | Serial not in Iru after an hour | Apple Business isn't pointing it at Iru | business.apple.com > Devices > Inventory > the Mac > **Assign Device Management** > Iru, then Iru > **Fetch devices** |

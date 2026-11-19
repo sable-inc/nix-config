@@ -1,6 +1,8 @@
 # Trial and new-hire Macs in Iru (v2)
 
-Setting up a Mac? Follow `docs/new-mac-runbook.md` step by step. This doc is the background.
+Setting up a Mac? Follow `docs/new-mac-runbook.md` step by step. Before anyone continues
+Setup Assistant, do "ADE preflight (required before anyone continues Setup Assistant)" below.
+This doc is the background.
 
 Iru runs the install that `docs/claude-setup-v1.md` does by hand, for trial Macs and for
 new-hire Macs. With Ethernet, Setup Assistant shows no screens; on Wi-Fi it asks only for
@@ -81,6 +83,34 @@ Grant only what is listed, and add the matching read permissions:
 New Macs in Apple Business default to Default Blueprint. Set each new Mac's blueprint in
 Iru (Enrollment, the "Enroll to" column, or the device page) before it is turned on.
 
+## ADE preflight (required before anyone continues Setup Assistant)
+
+Do this for a new-hire Mac and a trial Mac before anyone continues Setup Assistant. On
+Nov 18-19, 2026 serial M6Q7WGL00J (enrolled in Iru on Oct 9, then wiped, then added with
+Apple Configurator and assigned to the Iru ADE server on **Sable Onboard**) skipped Remote
+Management and asked for an Apple Account. It had fetched its cloud configuration before
+that assignment existed, and it still had the earlier enrollment. Serial KJ22C4R9PM was
+brand new and enrolled. The fix was an erase from Recovery Assistant, then Setup Assistant
+again.
+
+1. In Iru, the serial already shows the assignment. Look in Enrollment > Automated Device
+   Enrollment, or `GET /api/v1/integrations/apple/ade/devices`. The DEP server is Iru,
+   `profile_status` is `assigned`, `last_assignment_status` is `SUCCESS`, the blueprint is
+   **Sable Onboard** (new hire) or **Sable Trial** (trial Mac), and the asset tag is the one
+   from `docs/new-mac-runbook.md`, Part A.
+2. The Mac must not have reached the Wi-Fi or network step at any time before that
+   assignment. A Mac fetches its enrollment profile once, at the network step. If it might
+   have connected earlier, or it has an older Iru enrollment record (a reused Mac, or one
+   enrolled before), erase it first and start Setup Assistant fresh. Hold the power button
+   until startup options load, choose **Options**, then **Recovery Assistant > Erase Mac**.
+   Get Matthew's OK on that serial first.
+3. On Wi-Fi, the sign it worked is a **Remote Management** screen for Sable, right after
+   Wi-Fi. On Ethernet, Setup Assistant advances on its own and still must not ask for an
+   Apple Account. If it asks for an Apple Account, stop. The fix is that erase. A restart
+   does not fix it, and filling in the screens does not fix it.
+4. After Remote Management, confirm in Iru that the device's last enrollment is today before
+   continuing.
+
 The enrollment item creates `sable` itself, so nobody makes an account. Someone still logs
 in as `sable` once so the bootstrap can finish. First tested on trial3 (Nov 6, 2026):
 enrollment, rename, FileVault and the bootstrap all passed.
@@ -96,10 +126,11 @@ General > Sharing before retrying the bootstrap, which requires the `sable-` pre
 ## Each Mac (new or erased)
 
 **The one rule for whoever is at the Mac (paths 1 and 2): if Setup Assistant asks you to create
-an account, stop.** The Mac did not enroll. Iru creates `sable` itself, so an account prompt
-means Setup Assistant missed Iru. Don't create the account: hold the power button until startup
-options load, choose Options, then Recovery Assistant > Erase Mac, and start again. Erasing is
-the reliable fix: Setup Assistant is where Iru creates `sable` and skips the screens.
+an account, or asks for an Apple Account, stop.** The Mac did not enroll. Iru creates `sable`
+itself, so either prompt means Setup Assistant missed Iru. Don't create the account and don't
+sign in. Do the ADE preflight above, then erase (startup options, **Options**, **Recovery
+Assistant > Erase Mac**, with Matthew's OK on that serial) and start again. Erasing is the
+reliable fix. Setup Assistant is where Iru creates `sable` and skips the screens.
 
 In paths 1 and 2, the asset tag sets the name. Trial: the slot (`trial1`) with **Sable Trial**, so the Mac
 becomes `sable-trial1`. New hire: their @sable.ai email before the @ (`jane` for jane@sable.ai, `jdoe` for
@@ -116,16 +147,18 @@ These Macs appear in Iru on their own.
 
 1. In Iru, Enrollment > Automated Device Enrollment, find the serial and set the blueprint and
    asset tag. It shows "Awaiting enrollment": that is correct, Iru is waiting for the Mac
-2. Plug in Ethernet and turn it on (an already-used Mac: erase it first, from Iru if it's
-   enrolled). With Ethernet, Setup Assistant needs nothing; on Wi-Fi, pick the language,
-   country and network. A Remote Management screen appears and Iru takes over
+2. Plug in Ethernet and turn it on only after the ADE preflight above. An already-used Mac:
+   erase it first, from Iru if it's enrolled, otherwise as the preflight says. With Ethernet,
+   Setup Assistant needs nothing; on Wi-Fi, pick the language, country and network. A Remote
+   Management screen appears and Iru takes over
 3. At the login screen, log in as `sable` (the password is in the vault) and leave it logged
    in and plugged in. The bootstrap waits for that login before its last step
 
 ### 2. Bought anywhere else (retail, such as Best Buy)
 
 Configurator often reports errors, and Apple Business can take a while to pass the Mac to
-Iru. The Mac must not get past the first Setup Assistant screens until Iru has it.
+Iru. The Mac must not get past the first Setup Assistant screens until the ADE preflight
+above passes.
 
 1. Turn the Mac on and add it with Apple Configurator on an iPhone at the first Setup
    Assistant screen (see "Adding a Mac to Apple Business" below). Configurator often shows
@@ -136,9 +169,10 @@ Iru. The Mac must not get past the first Setup Assistant screens until Iru has i
    "Devices Added by Apple Configurator 2"); change it to Iru if not
 3. In Iru, Enrollment > Automated Device Enrollment (Sync if it isn't listed yet): wait until
    the serial is there, then set the blueprint and asset tag. It shows "Awaiting enrollment"
-4. Turn the Mac on and follow path 1 from step 2. Only if it went past Select Your Country or
-   Region before Iru listed it, erase it first (only with Matthew's OK on that serial): if setup finished, System Settings > General >
-   Transfer or Reset > Erase All Content and Settings; if it's still in Setup Assistant, hold
+4. Turn the Mac on and follow path 1 from step 2. Erase it first (only with Matthew's OK on
+   that serial) when the ADE preflight says to, including if it went past Select Your Country
+   or Region before Iru listed it. If setup finished, System Settings > General >
+   Transfer or Reset > Erase All Content and Settings. If it's still in Setup Assistant, hold
    the power button until startup options load, Options, then Recovery Assistant > Erase Mac.
    Word-for-word steps (following Apple's guide: pair, shut down, assign): `docs/new-mac-runbook.md`, Part C
 
