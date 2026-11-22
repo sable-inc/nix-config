@@ -183,13 +183,12 @@ invite):
 ## Part H. Clean a trial laptop for the next person
 
 A trial Mac is not erased between trialers. It gets a light cleanup at **midnight PT on the
-trial's last day**, then a `sable-setup` check. A full erase is the exception (the trialer used
-personal accounts on it, a long trial, or Matthew asks) and needs his OK on this exact serial.
+trial's last day**, then a `sable-setup` check. A full erase is the exception and needs Matthew's OK on this exact serial.
 
 1. The Onboarding bot's midnight routine runs the account reset for the slot per the wiki, with
    no per-trial go from Matthew. It is the same routine that runs step 2
 2. At midnight PT on the last day, run the trial cleanup script on the slot's Mac
-   (`sable-trial-cleanup`; one script, no other copies of this list). It deletes:
+   (the Iru custom script from Origin sable-ai/trial-tools `mac-cleanup/trial-light-cleanup.sh`; that script is the one source for this list). It deletes:
    - everything in Desktop, Downloads and Documents
    - local code folders and repos
    - browser profiles, cookies and saved passwords
