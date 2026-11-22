@@ -49,6 +49,8 @@ grep -q "\.local/bin" module/darwin/home-manager.nix &&
 ! grep -rq "DISABLE_AUTOUPDATER" module'
 need "sable-doctor and sable-setup (shared sable-lib.sh) treat a nix-store symlink as not user-owned, and setup reinstalls it" bash -c '
 set -e
+must() { "$@" || { echo "assertion failed: $*" >&2; exit 1; }; }
+mustnot() { if "$@"; then echo "assertion should have failed: $*" >&2; exit 1; fi; }
 t=$(mktemp -d); trap "rm -rf $t" EXIT
 . module/darwin/bin/sable-lib.sh
 export NIX_STORE_PREFIX="$t/nix/store"
@@ -57,72 +59,130 @@ mkdir -p "$t/nix/store/abc-claude/bin" "$t/home/.local/bin" "$t/home/.local/shar
 ln -s "$t/nix/store/abc-claude/bin/claude" "$t/home/.local/bin/claude"          # user dir, nix target
 ln -s ../share/real/pnpm "$t/home/.local/bin/pnpm"                              # relative, user target
 ln -s "$t/home/.local/bin/claude" "$t/home/.local/bin/claude2"                  # chain
-in_nix_store "$t/home/.local/bin/claude"
-in_nix_store "$t/home/.local/bin/claude2"
-! in_nix_store "$t/home/.local/bin/pnpm"
+must in_nix_store "$t/home/.local/bin/claude"
+must in_nix_store "$t/home/.local/bin/claude2"
+mustnot in_nix_store "$t/home/.local/bin/pnpm"
+# setup decides with own_install: reject the nix-store symlink and the chain, accept the user-owned binary
 export HOME="$t/home"; export PATH="$t/home/.local/bin:$PATH"
 chmod +x "$t/nix/store/abc-claude/bin/claude" "$t/home/.local/share/real/pnpm"
-! own_install claude
-! own_install claude2
-own_install pnpm
-! own_install nonexistent-cmd
-grep -q "own_install \"\$1\"" module/darwin/bin/sable-setup && grep -q "! own_install pnpm" module/darwin/bin/sable-setup && grep -q "! own_install bun" module/darwin/bin/sable-setup
-grep -q "sableLib + builtins.readFile ./bin/sable-doctor" module/darwin/profile.nix && grep -q "sableLib + builtins.readFile ./bin/sable-setup" module/darwin/profile.nix'
+mustnot own_install claude
+mustnot own_install claude2
+must own_install pnpm
+mustnot own_install nonexistent-cmd
+must grep -q "own_install \"\$1\"" module/darwin/bin/sable-setup
+must grep -q "! own_install pnpm" module/darwin/bin/sable-setup
+must grep -q "! own_install bun" module/darwin/bin/sable-setup
+must grep -q "sableLib + builtins.readFile ./bin/sable-doctor" module/darwin/profile.nix
+must grep -q "sableLib + builtins.readFile ./bin/sable-setup" module/darwin/profile.nix'
 need "sable-setup --unattended: no prompts, one line per missing sign-in, exit 0 unless an install failed; auto when stdin is not a TTY" bash -c '
 set -e
+must() { "$@" || { echo "assertion failed: $*" >&2; exit 1; }; }
+mustnot() { if "$@"; then echo "assertion should have failed: $*" >&2; exit 1; fi; }
 t=$(mktemp -d); trap "rm -rf $t" EXIT
 f=module/darwin/bin/sable-setup
-grep -q "unattended-args" $f && grep -q "unattended-report" $f
+must grep -q "unattended-args" $f
+must grep -q "unattended-report" $f
 sed -n "/# >>> unattended-report/,/# <<< unattended-report/p" $f >"$t/report.sh"
-! grep -Eq "(^|[^a-z_])read -r|wait_enter|gh auth login|claude auth login|codex login( |$)|sable login|open -ga|vercel login|gcloud auth login" "$t/report.sh"
+# Interactive logins are banned inside the report block; the read-only status probes (claude auth status,
+# codex login status, gh auth status, sable whoami, devin) are allowed.
+mustnot grep -Eq "(^|[^a-z_])read -r|wait_enter|gh auth login|claude auth login|claude +/login|codex login($| +[^s ]| +s[^t])|devin auth login|sable login|vercel login|gcloud auth login|(^|[^a-z_])open( |$)" "$t/report.sh"
+must grep -q "codex login status" "$t/report.sh"
+must grep -q "claude auth status" "$t/report.sh"
+must grep -q "gh auth status" "$t/report.sh"
 sed -n "/# >>> unattended-args/,/# <<< unattended-args/p" $f >"$t/args.sh"
 mkdir -p "$t/bin"; for c in gh claude codex agent sable; do printf "#!/bin/sh\nexit 1\n" >"$t/bin/$c"; chmod +x "$t/bin/$c"; done
 printf "#!/bin/sh\nexit 1\n" >"$t/bin/jq"; chmod +x "$t/bin/jq"
 run() { # run <install_failed> : report block under stubs, nothing signed in
   PATH="$t/bin:/usr/bin:/bin" bash -c "say() { :; }; have() { command -v \"\$1\" >/dev/null 2>&1; }; unattended=1; install_failed=$1; . $t/report.sh" </dev/null
 }
-out=$(run 0); rc=0
-for w in gh claude codex cursor sable; do printf "%s\n" "$out" | grep -q "^needs sign-in: $w" || { echo "missing line for $w"; exit 1; }; done
-[ "$(printf "%s\n" "$out" | grep -c "^needs sign-in")" = 5 ]
-run 0 >/dev/null
-rc=0; run 1 >/dev/null 2>&1 || rc=$?; [ "$rc" = 1 ]
+out=$(run 0)
+for w in gh claude codex cursor sable; do
+  if ! printf "%s\n" "$out" | grep -q "^needs sign-in: $w"; then echo "missing line for $w" >&2; exit 1; fi
+done
+n=$(printf "%s\n" "$out" | grep -c "^needs sign-in" || true)
+if [ "$n" != 5 ]; then echo "expected 5 sign-in lines, got $n" >&2; exit 1; fi
+rc=0; run 1 >/dev/null 2>&1 || rc=$?
+if [ "$rc" != 1 ]; then echo "an install failure must exit 1, got $rc" >&2; exit 1; fi
 # argument parsing: --unattended sets it, stdin not a TTY sets it, unknown flags stop
-PATH="/usr/bin:/bin" bash -c "die() { exit 9; }; . $t/args.sh; [ \$unattended = 1 ]" --unattended </dev/null
-PATH="/usr/bin:/bin" bash -c "die() { exit 9; }; set -- ; . $t/args.sh; [ \$unattended = 1 ]" </dev/null
-rc=0; PATH="/usr/bin:/bin" bash -c "die() { exit 9; }; set -- --bogus; . $t/args.sh" </dev/null || rc=$?; [ "$rc" = 9 ]'
+must env PATH="/usr/bin:/bin" bash -c "die() { exit 9; }; . $t/args.sh; [ \$unattended = 1 ]" --unattended </dev/null
+must env PATH="/usr/bin:/bin" bash -c "die() { exit 9; }; set -- ; . $t/args.sh; [ \$unattended = 1 ]" </dev/null
+rc=0; PATH="/usr/bin:/bin" bash -c "die() { exit 9; }; set -- --bogus; . $t/args.sh" </dev/null || rc=$?
+if [ "$rc" != 9 ]; then echo "unknown flag must stop, got $rc" >&2; exit 1; fi'
+need "Devin Desktop: new hires only (cask removed on trial), no CLI installer, doctor fails a trial Mac that has it, nothing in mdm or trial docs" bash -c '
+set -e
+must() { "$@" || { echo "assertion failed: $*" >&2; exit 1; }; }
+mustnot() { if "$@"; then echo "assertion should have failed: $*" >&2; exit 1; fi; }
+t=$(mktemp -d); trap "rm -rf $t" EXIT
+# the cask is installed on non-trial profiles and subtracted on trial
+must grep -q "\"devin-desktop\"" module/darwin/default.nix
+must grep -q "lib.optional (config.sable.profile == \"trial\") \"devin-desktop\"" module/darwin/default.nix
+# Devin appears only in default.nix (cask), the doctor and the docs: not in profile.nix trial paths, mdm/ or the trial docs
+mustnot grep -qi devin module/darwin/profile.nix
+mustnot grep -rqi devin mdm docs/claude-setup-v1.md docs/iru.md
+mustnot grep -qi devin module/darwin/bin/sable-setup
+# no CLI install and no login step anywhere
+mustnot grep -rqiE "cli\.devin\.ai|devin auth login|devin_install|devin update" module mdm
+# doctor behavior: onboard needs the app, trial fails if it is there, other profiles are not checked
+sed -n "/# >>> devin-desktop/,/# <<< devin-desktop/p" module/darwin/bin/sable-doctor >"$t/devin.sh"
+run() { # run <profile> <apps dir>
+  bash -c "ok() { echo \"PASS \$1\"; }; bad() { echo \"FAIL \$1\"; }; profile=$1; DEVIN_APPS_DIR=$2; . $t/devin.sh"
+}
+mkdir -p "$t/none" "$t/with/Devin.app"
+if ! run onboard "$t/with" | grep -q "^PASS Devin Desktop installed"; then echo "onboard with app should pass" >&2; exit 1; fi
+if ! run onboard "$t/none" | grep -q "^FAIL Devin Desktop"; then echo "onboard without app should fail" >&2; exit 1; fi
+if ! run trial "$t/with" | grep -q "^FAIL Devin Desktop is not on trial Macs"; then echo "trial with app should fail" >&2; exit 1; fi
+if ! run trial "$t/none" | grep -q "^PASS no Devin Desktop"; then echo "trial without app should pass" >&2; exit 1; fi
+n=$(run default "$t/with" | wc -l); if [ "$n" != 0 ]; then echo "default profile must print nothing" >&2; exit 1; fi'
 need "release installers: arch map, sha256 verified, bad checksum keeps the old install" bash -c '
 set -e
+must() { "$@" || { echo "assertion failed: $*" >&2; exit 1; }; }
+mustnot() { if "$@"; then echo "assertion should have failed: $*" >&2; exit 1; fi; }
 t=$(mktemp -d); trap "rm -rf $t" EXIT
 sed -n "/# >>> release-installers/,/# <<< release-installers/p" module/darwin/bin/sable-setup >"$t/fn.sh"
-grep -q "pnpm-darwin-\$arch" "$t/fn.sh" && grep -q "bun-darwin-\$arch" "$t/fn.sh"
+must grep -q "pnpm-darwin-\$arch" "$t/fn.sh"
+must grep -q "bun-darwin-\$arch" "$t/fn.sh"
 mkdir -p "$t/bin" "$t/srv"; printf "payload" >"$t/srv/a.zip"
 good=$(sha256sum "$t/srv/a.zip" | cut -d" " -f1)
 mk() { printf "{\"assets\":[{\"name\":\"a.zip\",\"browser_download_url\":\"https://x/a.zip\",\"digest\":\"sha256:%s\"}]}" "$1" >"$t/srv/meta.json"; }
-printf "#!/bin/sh\nfor a; do u=\$a; done\ncase \"\$*\" in *api.github.com*) cat %s/srv/meta.json;; *) o=\"\"; while [ \$# -gt 0 ]; do [ \"\$1\" = -o ] && o=\$2; shift; done; cp %s/srv/a.zip \"\$o\";; esac\n" "$t" "$t" >"$t/bin/curl"
-printf "#!/bin/sh\nsha256sum \"\$@\" | sed \"s/^\\([0-9a-f]*\\)  /\\1  /\"\n" >"$t/bin/shasum"
+printf "#!/bin/sh\ncase \"\$*\" in *api.github.com*) cat %s/srv/meta.json;; *) o=\"\"; while [ \$# -gt 0 ]; do [ \"\$1\" = -o ] && o=\$2; shift; done; cp %s/srv/a.zip \"\$o\";; esac\n" "$t" "$t" >"$t/bin/curl"
+printf "#!/bin/sh\nshift 2\nsha256sum \"\$@\"\n" >"$t/bin/shasum"
 chmod +x "$t/bin/curl" "$t/bin/shasum"; export PATH="$t/bin:$PATH"
 . "$t/fn.sh"
-mk "$good"; fetch_release_asset o/r a.zip "$t/ok.zip" && cmp -s "$t/ok.zip" "$t/srv/a.zip"
+mk "$good"
+must fetch_release_asset o/r a.zip "$t/ok.zip"
+must cmp -s "$t/ok.zip" "$t/srv/a.zip"
 mk 0000000000000000000000000000000000000000000000000000000000000000
-! fetch_release_asset o/r a.zip "$t/bad.zip" 2>/dev/null
-mk ""; ! fetch_release_asset o/r a.zip "$t/none.zip" 2>/dev/null
+mustnot fetch_release_asset o/r a.zip "$t/bad.zip"
+mk ""
+mustnot fetch_release_asset o/r a.zip "$t/none.zip"
 # a failed fetch must leave an existing pnpm install in place
 export HOME="$t/home"; mkdir -p "$HOME/.local/share/pnpm-cli"; echo old >"$HOME/.local/share/pnpm-cli/pnpm"
-mac_arch() { echo arm64; }; mk 0000000000000000000000000000000000000000000000000000000000000000
-! install_pnpm 2>/dev/null
-[ "$(cat "$HOME/.local/share/pnpm-cli/pnpm")" = old ]
-mac_arch() { return 1; }; ! install_bun 2>/dev/null'
+mac_arch() { echo arm64; }
+mk 0000000000000000000000000000000000000000000000000000000000000000
+mustnot install_pnpm
+if [ "$(cat "$HOME/.local/share/pnpm-cli/pnpm")" != old ]; then echo "old pnpm was lost" >&2; exit 1; fi
+mac_arch() { return 1; }
+mustnot install_bun'
 need "zsh loads ~/.config/sable/env only if owned by the user and not group/other writable" bash -c '
 set -e
 t=$(mktemp -d); trap "rm -rf $t" EXIT
 mkdir -p "$t/.config/sable"; f="$t/.config/sable/env"; echo "export SABLE_T=loaded" >"$f"
 run() { HOME=$t bash -c ". module/shared/config/sable-env.sh; echo \${SABLE_T:-no}" 2>/dev/null; }
-chmod 600 "$f"; [ "$(run)" = loaded ]
-chmod 644 "$f"; [ "$(run)" = loaded ]
-chmod 664 "$f"; [ "$(run)" = no ]
-chmod 646 "$f"; [ "$(run)" = no ]
-chmod 600 "$f"; sudo -n chown root "$f" 2>/dev/null && { [ "$(run)" = no ]; sudo -n chown "$(id -u)" "$f"; } || true
-grep -q "sable-env.sh" module/shared/home-manager.nix'
+expect() { # expect <mode> <loaded|no>
+  chmod "$1" "$f"
+  got=$(run)
+  if [ "$got" != "$2" ]; then echo "mode $1: expected $2, got $got" >&2; exit 1; fi
+}
+expect 600 loaded
+expect 644 loaded
+expect 664 no
+expect 646 no
+chmod 600 "$f"
+if sudo -n chown root "$f" 2>/dev/null; then
+  got=$(run); sudo -n chown "$(id -u)" "$f"
+  if [ "$got" != no ]; then echo "a root-owned file must not load" >&2; exit 1; fi
+fi
+if ! grep -q "sable-env.sh" module/shared/home-manager.nix; then echo "home-manager does not load sable-env.sh" >&2; exit 1; fi'
 need "Cursor is a Homebrew cask, not a nix package, and the doctor checks it" sh -c '
 grep -q "\"cursor\"" module/darwin/default.nix && grep -q "\"cursor\"" module/darwin/packages.nix &&
 grep -q "/Applications/Cursor.app" module/darwin/bin/sable-doctor'

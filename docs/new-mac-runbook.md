@@ -179,6 +179,12 @@ invite):
    Claude, ChatGPT, Linear, Notion, Loom, Wispr Flow, Cursor, 1Password
 3. If anyone else ever signed in to GitHub on this Mac, run `gh auth logout` in Terminal first
 4. In Terminal, they run `sable-setup` and follow it as above (with their own GitHub account)
+   - **Devin Desktop** comes from the `devin-desktop` Homebrew cask (new hires only, never a trial Mac). It
+     updates itself and bundles the CLI, so there is no separate CLI install or `devin auth login` step.
+     An admin first adds the person as a **Member** at
+     <https://sable.devinenterprise.com/org/sable-devin/settings/members?tab=members>. Then the hire opens
+     Devin Desktop and signs in with **Devin for Enterprise** using their @sable.ai Google account.
+     `sable-doctor` checks the app is installed; it can't see the sign-in
 5. After their first week, move the Mac in Iru to **Default Blueprint** (Devices > the Mac's
    name > **Edit device details** > **Edit Blueprint**). See `docs/iru.md`, "New hires after week one"
 

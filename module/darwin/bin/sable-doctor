@@ -170,6 +170,21 @@ for c in claude codex pnpm bun; do
   else bad "$c at $p can't update itself" "run sable-setup, then open a new terminal"; fi
 done
 
+# >>> devin-desktop
+# Devin Desktop is a Homebrew cask (default.nix; it auto-updates and bundles the CLI), for new hires only:
+# the trial profile removes it. Sign-in (Devin for Enterprise with the @sable.ai Google account) can't be
+# read reliably from outside the app, so there is no sign-in line.
+devin_apps_dir=${DEVIN_APPS_DIR:-/Applications}
+devin_app_present() { local a; for a in "$devin_apps_dir"/Devin*.app; do [ -d "$a" ] && return 0; done; return 1; }
+if [ "$profile" = onboard ]; then
+  if devin_app_present; then ok "Devin Desktop installed (updates itself)"
+  else bad "Devin Desktop" "rerun build-switch (the devin-desktop cask installs it), then sign in with Devin for Enterprise"; fi
+elif [ "$profile" = trial ]; then
+  if devin_app_present; then bad "Devin Desktop is not on trial Macs" "rerun build-switch (the trial profile removes the devin-desktop cask)"
+  else ok "no Devin Desktop (new hires only)"; fi
+fi
+# <<< devin-desktop
+
 echo "== notifications and agents (nix-config agents.nix, Iru Sable: Notifications)"
 np="/Library/Managed Preferences/com.apple.notificationsettings.plist"
 for b in com.tinyspeck.slackmacgap:Slack com.stablyai.orca:Orca; do
