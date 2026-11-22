@@ -389,7 +389,11 @@ grep -q sable-accept-invites mdm/iru-update.sh
 '
 if ! command -v nix-instantiate >/dev/null 2>&1 && command -v apt-get >/dev/null 2>&1; then
   echo "installing nix-bin for nix-instantiate --parse (same as CI)" >&2
-  sudo apt-get update -qq && sudo apt-get install -y -qq nix-bin || true
+  sudo_cmd=sudo
+  if [ "$(id -u)" = 0 ]; then sudo_cmd=; fi
+  if ! $sudo_cmd apt-get update -qq || ! $sudo_cmd apt-get install -y -qq nix-bin; then
+    echo "warning: could not install nix-bin" >&2
+  fi
 fi
 if ! command -v nix-instantiate >/dev/null 2>&1; then
   echo "FAIL  nix parse: nix-instantiate not installed. CI installs nix-bin with apt-get; install nix and rerun." >&2
@@ -398,7 +402,8 @@ else
   need "every .nix file parses (nix-instantiate --parse), and the checker rejects a broken file and a duplicate scalar attribute" bash -c '
 set -e
 t=$(mktemp -d); trap "rm -rf $t" EXIT
-parse_all() { local f; for f in "$@"; do nix-instantiate --parse "$f" >/dev/null 2>"$t/err" || { echo "does not parse: $f" >&2; cat "$t/err" >&2; return 1; }; done; }
+# A private chroot store under $t: parsing then needs no nix daemon, no /nix/var and no root (apt nix-bin has no daemon).
+parse_all() { local f; for f in "$@"; do NIX_REMOTE= nix-instantiate --store "$t/store" --parse "$f" >/dev/null 2>"$t/err" || { echo "does not parse: $f" >&2; cat "$t/err" >&2; return 1; }; done; }
 files=$(git ls-files "*.nix")
 if [ -z "$files" ]; then echo "no .nix files found" >&2; exit 1; fi
 # shellcheck disable=SC2086
