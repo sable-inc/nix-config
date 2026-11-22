@@ -280,6 +280,123 @@ case "$profile" in
 esac
 [ "$(id -un)" = sable ] || die "run this as the sable user"
 
+# >>> unattended-args
+unattended=0 install_failed=0
+for arg in "$@"; do
+  case "$arg" in
+    --unattended) unattended=1 ;;
+    *) die "unknown argument: $arg (usage: sable-setup [--unattended])" ;;
+  esac
+done
+if [ ! -t 0 ]; then unattended=1; fi
+# <<< unattended-args
+
+# Claude Code and Codex are user-owned native installs in ~/.local/bin that update themselves
+# (and Orca can update them). nix-config never pins or installs them. A nix-store copy from an
+# older build is not the user's own, so it is replaced. These installers always fetch the latest.
+say "Agent CLIs (Claude Code, Codex)"
+export PATH="$HOME/.local/bin:$PATH"
+agent_cli() { # agent_cli <command> <installer url> <shell>
+  if own_install "$1"; then
+    echo "$1: $("$1" --version 2>/dev/null | head -1) (updates itself: $1 update)"; return
+  fi
+  echo "installing $1 from its own installer..."
+  /usr/bin/curl --proto '=https' --tlsv1.2 -fsSL "$2" | "$3" || { you "couldn't install $1; rerun sable-setup"; install_failed=1; }
+}
+agent_cli claude https://claude.ai/install.sh bash
+agent_cli codex https://chatgpt.com/codex/install.sh sh
+
+# pnpm and bun: their own release builds, user-owned, so `pnpm self-update` and `bun upgrade` can
+# write them (a nix store copy is read-only and lags). Always the latest release, verified against the
+# sha256 digest GitHub publishes for the release asset, staged, then swapped in; any failure keeps the old install.
+# >>> release-installers
+mac_arch() { # arm64 | x64 (Rosetta shells report x86_64, so ask the hardware)
+  if [ "$(/usr/sbin/sysctl -n hw.optional.arm64 2>/dev/null || echo 0)" = 1 ]; then echo arm64; return; fi
+  case "$(uname -m)" in arm64) echo arm64 ;; x86_64) echo x64 ;; *) return 1 ;; esac
+}
+# fetch_release_asset <owner/repo> <asset name> <dest file>: latest release, sha256 checked
+fetch_release_asset() {
+  local repo=$1 asset=$2 dest=$3 meta url want got
+  meta=$(curl --proto '=https' --tlsv1.2 -fsSL "https://api.github.com/repos/$repo/releases/latest") || return 1
+  url=$(printf '%s' "$meta" | python3 -I -c 'import json,sys
+for a in json.load(sys.stdin).get("assets", []):
+    if a["name"] == sys.argv[1]: print(a["browser_download_url"]); break' "$asset") || return 1
+  want=$(printf '%s' "$meta" | python3 -I -c 'import json,sys
+for a in json.load(sys.stdin).get("assets", []):
+    if a["name"] == sys.argv[1]: print((a.get("digest") or "").removeprefix("sha256:")); break' "$asset") || return 1
+  if [ -z "$url" ] || [ "${#want}" != 64 ]; then echo "no published sha256 for $asset" >&2; return 1; fi
+  curl --proto '=https' --tlsv1.2 -fsSL -o "$dest" "$url" || return 1
+  got=$(shasum -a 256 "$dest" | cut -d' ' -f1)
+  if [ "$got" != "$want" ]; then echo "sha256 mismatch for $asset" >&2; return 1; fi
+}
+# install_pnpm / install_bun: stage, check it runs, swap in atomically; the old install stays on failure.
+install_pnpm() {
+  local arch dir=$HOME/.local/share/pnpm-cli tmp rc=1
+  arch=$(mac_arch) || { echo "unsupported CPU $(uname -m): can't install pnpm" >&2; return 1; }
+  mkdir -p "$HOME/.local/bin" "$HOME/.local/share"
+  tmp=$(mktemp -d "$HOME/.local/share/.pnpm-stage.XXXXXX") || return 1
+  if fetch_release_asset pnpm/pnpm "pnpm-darwin-$arch.tar.gz" "$tmp/pnpm.tgz" \
+    && mkdir "$tmp/new" && tar -xzf "$tmp/pnpm.tgz" -C "$tmp/new" && "$tmp/new/pnpm" --version >/dev/null 2>&1; then
+    [ ! -e "$dir" ] || mv "$dir" "$tmp/old"
+    if mv "$tmp/new" "$dir"; then ln -sfn "$dir/pnpm" "$HOME/.local/bin/pnpm"; rc=0
+    elif [ -e "$tmp/old" ]; then mv "$tmp/old" "$dir"; fi
+  fi
+  rm -rf "$tmp"; return $rc
+}
+install_bun() {
+  local arch dir=$HOME/.bun/bin tmp rc=1
+  arch=$(mac_arch) || { echo "unsupported CPU $(uname -m): can't install bun" >&2; return 1; }
+  [ "$arch" = arm64 ] && arch=aarch64
+  mkdir -p "$dir"
+  tmp=$(mktemp -d "$dir/.bun-stage.XXXXXX") || return 1
+  if fetch_release_asset oven-sh/bun "bun-darwin-$arch.zip" "$tmp/bun.zip" \
+    && /usr/bin/unzip -q -o "$tmp/bun.zip" -d "$tmp" && "$tmp/bun-darwin-$arch/bun" --version >/dev/null 2>&1 \
+    && install -m 0755 "$tmp/bun-darwin-$arch/bun" "$dir/.bun.new" && mv -f "$dir/.bun.new" "$dir/bun"; then rc=0; fi
+  rm -rf "$tmp" "$dir/.bun.new"; return $rc
+}
+# <<< release-installers
+say "pnpm and bun"
+if ! own_install pnpm; then
+  echo "installing pnpm from its release build..."
+  install_pnpm || { you "couldn't install pnpm; rerun sable-setup"; install_failed=1; }
+fi
+echo "pnpm: $(pnpm --version 2>/dev/null | head -1) (updates itself: pnpm self-update)"
+if ! own_install bun; then
+  echo "installing bun from its release build..."
+  install_bun || { you "couldn't install bun; rerun sable-setup"; install_failed=1; }
+fi
+export PATH="$HOME/.bun/bin:$PATH"
+echo "bun: $(bun --version 2>/dev/null | head -1) (updates itself: bun upgrade)"
+
+
+# --unattended (also automatic when stdin is not a terminal): never prompts or opens a browser. It installs and
+# updates every CLI above, prints one line per missing sign-in, and exits 0 if all installs worked (missing
+# sign-ins are reported, not fatal) or 1 if an install failed. trial-tools runs this after the midnight reset.
+# >>> unattended-report
+if [ "$unattended" = 1 ]; then
+  say "Unattended: sign-in report"
+  if gh auth status >/dev/null 2>&1; then
+    # Refresh Sable CLIs only where they already exist; this never decides who gets Sable access.
+    NPM_TOKEN="$(gh auth token 2>/dev/null)"; export NPM_TOKEN
+    if have sable; then bun add -g @sable-inc/toolbelt@latest >/dev/null 2>&1 || { echo "install failed: @sable-inc/toolbelt" >&2; install_failed=1; }; fi
+    if have sablebrowse; then npm install -g @sable-inc/sablebrowse@latest >/dev/null 2>&1 || { echo "install failed: @sable-inc/sablebrowse" >&2; install_failed=1; }; fi
+    if have vercel; then npm install -g vercel@latest >/dev/null 2>&1 || { echo "install failed: vercel" >&2; install_failed=1; }; fi
+  fi
+  gh auth status >/dev/null 2>&1 || echo "needs sign-in: gh"
+  if have claude; then claude auth status >/dev/null 2>&1 || echo "needs sign-in: claude"; else echo "needs sign-in: claude (not installed)"; fi
+  if have codex; then codex login status >/dev/null 2>&1 </dev/null || echo "needs sign-in: codex"; else echo "needs sign-in: codex (not installed)"; fi
+  cursor_cli=agent; have agent || cursor_cli=cursor-agent
+  if have "$cursor_cli"; then
+    "$cursor_cli" status --format json </dev/null 2>/dev/null | jq -e '.isAuthenticated == true' >/dev/null 2>&1 || echo "needs sign-in: cursor"
+  else echo "needs sign-in: cursor (cli not installed)"; fi
+  if have sable; then sable --json whoami >/dev/null 2>&1 </dev/null || echo "needs sign-in: sable"; else echo "needs sign-in: sable (not installed)"; fi
+  if [ "$install_failed" = 1 ]; then echo "unattended: an install failed" >&2; exit 1; fi
+  echo "unattended: installs ok"
+  exit 0
+fi
+# <<< unattended-report
+
+
 github_login() { # github_login [expected user]
   if gh auth status 2>&1 | grep -q 'read:packages'; then return; fi
   you "Sign in to GitHub${1:+ as $1} in the browser that opens."
@@ -361,84 +478,6 @@ if [ "$profile" = trial ]; then
     [ -s "$HOME/trial-prompt-template.md" ] || die "no trial prompt template: ask the Onboarding bot to add trial-prompt-template.md to $inputs_repo"
   fi
 fi
-
-# Claude Code and Codex are user-owned native installs in ~/.local/bin that update themselves
-# (and Orca can update them). nix-config never pins or installs them. A nix-store copy from an
-# older build is not the user's own, so it is replaced. These installers always fetch the latest.
-say "Agent CLIs (Claude Code, Codex)"
-export PATH="$HOME/.local/bin:$PATH"
-agent_cli() { # agent_cli <command> <installer url> <shell>
-  local bin
-  bin=$(command -v "$1" 2>/dev/null || true)
-  case "$bin" in "$HOME"/.local/bin/*) echo "$1: $("$1" --version 2>/dev/null | head -1) (updates itself: $1 update)"; return ;; esac
-  echo "installing $1 from its own installer..."
-  /usr/bin/curl --proto '=https' --tlsv1.2 -fsSL "$2" | "$3" || you "couldn't install $1; rerun sable-setup"
-}
-agent_cli claude https://claude.ai/install.sh bash
-agent_cli codex https://chatgpt.com/codex/install.sh sh
-
-# pnpm and bun: their own release builds, user-owned, so `pnpm self-update` and `bun upgrade` can
-# write them (a nix store copy is read-only and lags). Always the latest release, verified against the
-# sha256 digest GitHub publishes for the release asset, staged, then swapped in; any failure keeps the old install.
-# >>> release-installers
-mac_arch() { # arm64 | x64 (Rosetta shells report x86_64, so ask the hardware)
-  if [ "$(/usr/sbin/sysctl -n hw.optional.arm64 2>/dev/null || echo 0)" = 1 ]; then echo arm64; return; fi
-  case "$(uname -m)" in arm64) echo arm64 ;; x86_64) echo x64 ;; *) return 1 ;; esac
-}
-# fetch_release_asset <owner/repo> <asset name> <dest file>: latest release, sha256 checked
-fetch_release_asset() {
-  local repo=$1 asset=$2 dest=$3 meta url want got
-  meta=$(curl --proto '=https' --tlsv1.2 -fsSL "https://api.github.com/repos/$repo/releases/latest") || return 1
-  url=$(printf '%s' "$meta" | python3 -I -c 'import json,sys
-for a in json.load(sys.stdin).get("assets", []):
-    if a["name"] == sys.argv[1]: print(a["browser_download_url"]); break' "$asset") || return 1
-  want=$(printf '%s' "$meta" | python3 -I -c 'import json,sys
-for a in json.load(sys.stdin).get("assets", []):
-    if a["name"] == sys.argv[1]: print((a.get("digest") or "").removeprefix("sha256:")); break' "$asset") || return 1
-  [ -n "$url" ] && [ "${#want}" = 64 ] || { echo "no published sha256 for $asset" >&2; return 1; }
-  curl --proto '=https' --tlsv1.2 -fsSL -o "$dest" "$url" || return 1
-  got=$(shasum -a 256 "$dest" | cut -d' ' -f1)
-  [ "$got" = "$want" ] || { echo "sha256 mismatch for $asset" >&2; return 1; }
-}
-# install_pnpm / install_bun: stage, check it runs, swap in atomically; the old install stays on failure.
-install_pnpm() {
-  local arch dir=$HOME/.local/share/pnpm-cli tmp rc=1
-  arch=$(mac_arch) || { echo "unsupported CPU $(uname -m): can't install pnpm" >&2; return 1; }
-  mkdir -p "$HOME/.local/bin" "$HOME/.local/share"
-  tmp=$(mktemp -d "$HOME/.local/share/.pnpm-stage.XXXXXX") || return 1
-  if fetch_release_asset pnpm/pnpm "pnpm-darwin-$arch.tar.gz" "$tmp/pnpm.tgz" \
-    && mkdir "$tmp/new" && tar -xzf "$tmp/pnpm.tgz" -C "$tmp/new" && "$tmp/new/pnpm" --version >/dev/null 2>&1; then
-    [ ! -e "$dir" ] || mv "$dir" "$tmp/old"
-    if mv "$tmp/new" "$dir"; then ln -sfn "$dir/pnpm" "$HOME/.local/bin/pnpm"; rc=0
-    elif [ -e "$tmp/old" ]; then mv "$tmp/old" "$dir"; fi
-  fi
-  rm -rf "$tmp"; return $rc
-}
-install_bun() {
-  local arch dir=$HOME/.bun/bin tmp rc=1
-  arch=$(mac_arch) || { echo "unsupported CPU $(uname -m): can't install bun" >&2; return 1; }
-  [ "$arch" = arm64 ] && arch=aarch64
-  mkdir -p "$dir"
-  tmp=$(mktemp -d "$dir/.bun-stage.XXXXXX") || return 1
-  if fetch_release_asset oven-sh/bun "bun-darwin-$arch.zip" "$tmp/bun.zip" \
-    && /usr/bin/unzip -q -o "$tmp/bun.zip" -d "$tmp" && "$tmp/bun-darwin-$arch/bun" --version >/dev/null 2>&1 \
-    && install -m 0755 "$tmp/bun-darwin-$arch/bun" "$dir/.bun.new" && mv -f "$dir/.bun.new" "$dir/bun"; then rc=0; fi
-  rm -rf "$tmp" "$dir/.bun.new"; return $rc
-}
-# <<< release-installers
-say "pnpm and bun"
-own_dir() { case "$(command -v "$1" 2>/dev/null || true)" in "$HOME"/.local/*|"$HOME"/.bun/*) return 0 ;; *) return 1 ;; esac; }
-if ! own_dir pnpm; then
-  echo "installing pnpm from its release build..."
-  install_pnpm || you "couldn't install pnpm; rerun sable-setup"
-fi
-echo "pnpm: $(pnpm --version 2>/dev/null | head -1) (updates itself: pnpm self-update)"
-if ! own_dir bun; then
-  echo "installing bun from its release build..."
-  install_bun || you "couldn't install bun; rerun sable-setup"
-fi
-export PATH="$HOME/.bun/bin:$PATH"
-echo "bun: $(bun --version 2>/dev/null | head -1) (updates itself: bun upgrade)"
 
 say "GitHub"
 github_login "$github_user"

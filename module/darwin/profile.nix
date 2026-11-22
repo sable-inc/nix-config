@@ -11,8 +11,10 @@
 }:
 let
   profile = config.sable.profile;
-  sableDoctor = pkgs.writeShellScriptBin "sable-doctor" (builtins.readFile ./bin/sable-doctor);
-  sableSetup = pkgs.writeShellScriptBin "sable-setup" (builtins.readFile ./bin/sable-setup);
+  # sable-lib.sh (symlink-aware nix-store checks) is shared by both scripts.
+  sableLib = builtins.readFile ./bin/sable-lib.sh;
+  sableDoctor = pkgs.writeShellScriptBin "sable-doctor" (sableLib + builtins.readFile ./bin/sable-doctor);
+  sableSetup = pkgs.writeShellScriptBin "sable-setup" (sableLib + builtins.readFile ./bin/sable-setup);
   sableAcceptInvites = pkgs.writeShellScriptBin "sable-accept-invites" (builtins.readFile ./bin/sable-accept-invites);
 in
 {

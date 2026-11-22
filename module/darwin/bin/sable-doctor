@@ -162,28 +162,12 @@ for c in git gh node uv doppler lk; do
 done
 # Claude Code, Codex, pnpm and bun must be the user's own installs (~/.local/bin), not read-only nix copies,
 # so Orca and `claude update` / `codex update` can upgrade them.
-# >>> resolve-path
-# Follow every symlink (macOS-safe: no readlink -f) and say where the file really lives.
-resolve_path() {
-  local p=$1 n=0 t d
-  while [ -L "$p" ] && [ "$n" -lt 40 ]; do
-    t=$(readlink "$p"); d=$(dirname "$p")
-    case "$t" in /*) p=$t ;; *) p="$d/$t" ;; esac
-    n=$((n+1))
-  done
-  d=$(cd -P "$(dirname "$p")" 2>/dev/null && pwd -P) || { echo "$p"; return; }
-  echo "$d/$(basename "$p")"
-}
-in_nix_store() { case "$(resolve_path "$1")" in "${NIX_STORE_PREFIX:-/nix/store}"/*) return 0 ;; *) return 1 ;; esac; }
-# <<< resolve-path
 for c in claude codex pnpm bun; do
   p=$(command -v "$c" 2>/dev/null || true)
   if [ -z "$p" ]; then bad "$c" "run sable-setup (it installs $c with its own installer)"
   elif in_nix_store "$p"; then bad "$c at $p resolves into the nix store and can't update itself" "run sable-setup, then open a new terminal"
-  else case "$p" in
-    "$HOME"/.local/bin/*|"$HOME"/.bun/bin/*) ok "$c is a user-owned install (updates itself)" ;;
-    *) bad "$c at $p can't update itself" "run sable-setup, then open a new terminal" ;;
-  esac; fi
+  elif own_install "$c"; then ok "$c is a user-owned install (updates itself)"
+  else bad "$c at $p can't update itself" "run sable-setup, then open a new terminal"; fi
 done
 
 echo "== notifications and agents (nix-config agents.nix, Iru Sable: Notifications)"

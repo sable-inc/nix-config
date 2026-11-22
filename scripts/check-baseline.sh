@@ -47,11 +47,10 @@ grep -q "claude.ai/install.sh" module/darwin/bin/sable-setup &&
 grep -q "chatgpt.com/codex/install.sh" module/darwin/bin/sable-setup &&
 grep -q "\.local/bin" module/darwin/home-manager.nix &&
 ! grep -rq "DISABLE_AUTOUPDATER" module'
-need "sable-doctor fails a claude/codex/pnpm/bun that is a symlink into the nix store, passes a user-owned one" bash -c '
+need "sable-doctor and sable-setup (shared sable-lib.sh) treat a nix-store symlink as not user-owned, and setup reinstalls it" bash -c '
 set -e
 t=$(mktemp -d); trap "rm -rf $t" EXIT
-sed -n "/# >>> resolve-path/,/# <<< resolve-path/p" module/darwin/bin/sable-doctor >"$t/fn.sh"
-. "$t/fn.sh"
+. module/darwin/bin/sable-lib.sh
 export NIX_STORE_PREFIX="$t/nix/store"
 mkdir -p "$t/nix/store/abc-claude/bin" "$t/home/.local/bin" "$t/home/.local/share/real"
 : >"$t/nix/store/abc-claude/bin/claude"; : >"$t/home/.local/share/real/pnpm"
@@ -61,7 +60,36 @@ ln -s "$t/home/.local/bin/claude" "$t/home/.local/bin/claude2"                  
 in_nix_store "$t/home/.local/bin/claude"
 in_nix_store "$t/home/.local/bin/claude2"
 ! in_nix_store "$t/home/.local/bin/pnpm"
-grep -q "in_nix_store \"\$p\"" module/darwin/bin/sable-doctor'
+export HOME="$t/home"; export PATH="$t/home/.local/bin:$PATH"
+chmod +x "$t/nix/store/abc-claude/bin/claude" "$t/home/.local/share/real/pnpm"
+! own_install claude
+! own_install claude2
+own_install pnpm
+! own_install nonexistent-cmd
+grep -q "own_install \"\$1\"" module/darwin/bin/sable-setup && grep -q "! own_install pnpm" module/darwin/bin/sable-setup && grep -q "! own_install bun" module/darwin/bin/sable-setup
+grep -q "sableLib + builtins.readFile ./bin/sable-doctor" module/darwin/profile.nix && grep -q "sableLib + builtins.readFile ./bin/sable-setup" module/darwin/profile.nix'
+need "sable-setup --unattended: no prompts, one line per missing sign-in, exit 0 unless an install failed; auto when stdin is not a TTY" bash -c '
+set -e
+t=$(mktemp -d); trap "rm -rf $t" EXIT
+f=module/darwin/bin/sable-setup
+grep -q "unattended-args" $f && grep -q "unattended-report" $f
+sed -n "/# >>> unattended-report/,/# <<< unattended-report/p" $f >"$t/report.sh"
+! grep -Eq "(^|[^a-z_])read -r|wait_enter|gh auth login|claude auth login|codex login( |$)|sable login|open -ga|vercel login|gcloud auth login" "$t/report.sh"
+sed -n "/# >>> unattended-args/,/# <<< unattended-args/p" $f >"$t/args.sh"
+mkdir -p "$t/bin"; for c in gh claude codex agent sable; do printf "#!/bin/sh\nexit 1\n" >"$t/bin/$c"; chmod +x "$t/bin/$c"; done
+printf "#!/bin/sh\nexit 1\n" >"$t/bin/jq"; chmod +x "$t/bin/jq"
+run() { # run <install_failed> : report block under stubs, nothing signed in
+  PATH="$t/bin:/usr/bin:/bin" bash -c "say() { :; }; have() { command -v \"\$1\" >/dev/null 2>&1; }; unattended=1; install_failed=$1; . $t/report.sh" </dev/null
+}
+out=$(run 0); rc=0
+for w in gh claude codex cursor sable; do printf "%s\n" "$out" | grep -q "^needs sign-in: $w" || { echo "missing line for $w"; exit 1; }; done
+[ "$(printf "%s\n" "$out" | grep -c "^needs sign-in")" = 5 ]
+run 0 >/dev/null
+rc=0; run 1 >/dev/null 2>&1 || rc=$?; [ "$rc" = 1 ]
+# argument parsing: --unattended sets it, stdin not a TTY sets it, unknown flags stop
+PATH="/usr/bin:/bin" bash -c "die() { exit 9; }; . $t/args.sh; [ \$unattended = 1 ]" --unattended </dev/null
+PATH="/usr/bin:/bin" bash -c "die() { exit 9; }; set -- ; . $t/args.sh; [ \$unattended = 1 ]" </dev/null
+rc=0; PATH="/usr/bin:/bin" bash -c "die() { exit 9; }; set -- --bogus; . $t/args.sh" </dev/null || rc=$?; [ "$rc" = 9 ]'
 need "release installers: arch map, sha256 verified, bad checksum keeps the old install" bash -c '
 set -e
 t=$(mktemp -d); trap "rm -rf $t" EXIT
@@ -307,6 +335,6 @@ if ! command -v shellcheck >/dev/null 2>&1; then
   echo "FAIL  shellcheck: not installed. CI installs it with apt-get; install shellcheck and rerun." >&2
   fail=1
 else
-  need "shellcheck: bin and mdm scripts" shellcheck -s bash module/darwin/bin/sable-doctor module/darwin/bin/sable-setup module/darwin/bin/sable-accept-invites mdm/iru-bootstrap.sh mdm/iru-doctor.sh mdm/iru-update.sh mdm/iru-vanta.sh mdm/iru-trial-packages.sh scripts/check-baseline.sh
+  need "shellcheck: bin and mdm scripts" shellcheck -s bash module/darwin/bin/sable-lib.sh module/darwin/bin/sable-doctor module/darwin/bin/sable-setup module/darwin/bin/sable-accept-invites mdm/iru-bootstrap.sh mdm/iru-doctor.sh mdm/iru-update.sh mdm/iru-vanta.sh mdm/iru-trial-packages.sh scripts/check-baseline.sh
 fi
 if [ "$fail" = 0 ]; then echo "check-baseline: PASS"; else echo "check-baseline: FAIL"; exit 1; fi
