@@ -202,7 +202,7 @@ trial's last day**, then a `sable-setup` check. A full erase is the exception an
      Claude app, ChatGPT app, Slack and 1Password sign-ins and clears their chats and history (trial-tools KEEP_LOGIN).
      Chrome sync is off on trial Macs (`mdm/chrome-trial-sync.mobileconfig`), so synced history and bookmarks do not come back
 3. It leaves Wi-Fi networks, system settings, config profiles and Homebrew packages as they are
-4. Run the `sable-setup` check and read back that it passes and the Mac is signed out.
+4. Run the `sable-setup` check and read back that it passes. The trialer's own apps are signed out. The slot's Chrome, Claude Code, Codex, Cursor, Claude app, ChatGPT, Slack and 1Password sign-ins remain. GitHub does not: cleanup deletes it, and `sable-setup` signs the slot back in.
    `sable-doctor` also requires `sable --version` and `sable whoami` as a Sable admin on every
    slot. The CLI package-read token is the 1Password item **Sable CLI** (field `token`) or
    `/Library/Application Support/Sable/cli-packages-token`, not the slot's GitHub login

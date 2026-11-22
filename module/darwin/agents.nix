@@ -31,17 +31,33 @@ in
         && /usr/bin/git -C "$pstack_tmp" checkout -q --detach FETCH_HEAD \
         && [ "$(/usr/bin/git -C "$pstack_tmp" rev-parse HEAD)" = "${pstackRev}" ]; then
         /bin/mkdir -p "$(dirname "$pstack_dir")"
-        rm -rf "$pstack_dir.old"; [ -e "$pstack_dir" ] && mv "$pstack_dir" "$pstack_dir.old"
-        mv "$pstack_tmp" "$pstack_dir" && rm -rf "$pstack_dir.old"
-        /bin/chmod -R go-w "$pstack_dir"; /bin/chmod -R a+rX "$pstack_dir"
+        rm -rf "$pstack_dir.old"
+        if [ -e "$pstack_dir" ] && ! mv "$pstack_dir" "$pstack_dir.old"; then
+          rm -rf "$pstack_tmp"
+          echo "warning: couldn't move the old pstack checkout aside, the next build-switch will try again" >&2
+        elif mv "$pstack_tmp" "$pstack_dir"; then
+          rm -rf "$pstack_dir.old"
+          /bin/chmod -R go-w "$pstack_dir"
+          /bin/chmod -R a+rX "$pstack_dir"
+        else
+          if [ -e "$pstack_dir.old" ]; then mv "$pstack_dir.old" "$pstack_dir"; fi
+          rm -rf "$pstack_tmp"
+          echo "warning: couldn't replace the pstack checkout, restored the previous one" >&2
+        fi
       else
         rm -rf "$pstack_tmp"
         echo "warning: couldn't fetch pstack, the next build-switch will try again" >&2
       fi
     fi
-    if [ -d "$pstack_dir/harness/pstack/claude-code/skills" ]; then
+    # Link Codex skills only when this checkout is the pinned commit. A failed update must
+    # not keep serving the previous revision.
+    if [ "$(/usr/bin/git -C "$pstack_dir" rev-parse HEAD 2>/dev/null)" = "${pstackRev}" ] \
+      && [ -d "$pstack_dir/harness/pstack/claude-code/skills" ]; then
       /bin/mkdir -p /etc/codex
       /bin/ln -sfn "$pstack_dir/harness/pstack/claude-code/skills" /etc/codex/skills
+    else
+      if [ -L /etc/codex/skills ]; then /bin/rm -f /etc/codex/skills; fi
+      echo "warning: pstack checkout is not ${pstackRev}, so /etc/codex/skills is not linked" >&2
     fi
   '';
 }

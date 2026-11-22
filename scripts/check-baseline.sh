@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 fail=0
 need() { # need <description> <command...>
   local d=$1; shift
-  if "$@" >/dev/null 2>&1; then echo "ok    $d"; else echo "FAIL  $d"; fail=1; fi
+  if "$@" >/dev/null; then echo "ok    $d"; else echo "FAIL  $d"; fail=1; fi
 }
 py() { python3 -I -c "$@"; }
 

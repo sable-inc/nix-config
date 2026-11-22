@@ -9,7 +9,9 @@ new-hire Macs. With Ethernet, Setup Assistant shows no screens; on Wi-Fi it asks
 language, country and Wi-Fi. Iru creates the `sable` admin account, then installs the Command Line Tools, Nix and this repo with the trial
 or onboard profile, and reports `sable-doctor` daily. A new hire's own sign-ins (GitHub, Google, Claude) need
 their password and phone, so they stay with that person, guided by the Claude prompt. Trial Macs keep the
-slot's sign-ins across trials (trial-tools `mac-cleanup` KEEP_LOGIN).
+slot's Chrome, Claude Code, Codex, Cursor, Claude app, ChatGPT, Slack and 1Password sign-ins across trials
+(trial-tools `mac-cleanup` KEEP_LOGIN). GitHub auth is deleted with the other tokens, and `sable-setup` signs
+the slot back in.
 
 | blueprint | for | bootstrap profile |
 |:--|:--|:--|
@@ -31,7 +33,7 @@ Sable Onboard and Sable Trial each get these items (done Nov 5, 2026):
 | Custom Profile | upload; installs the SableBrowse and 1Password Chrome extensions. Also on Default Blueprint (before a hire moves). Does not disable Chrome sync | `mdm/chrome-sablebrowse.mobileconfig` |
 | Custom Profile "Sable: Chrome sync off" | Sable Trial only. `SyncDisabled` so a trialer's history and bookmarks cannot return after cleanup; Chrome stays signed in. Not on Sable Onboard or Default Blueprint | `mdm/chrome-trial-sync.mobileconfig` |
 | File on the Mac | `/Library/Application Support/Sable/cli-packages-token`, mode `0600`, one `read:packages` token. `sable-setup` uses it to install `@sable-inc/toolbelt` on every trial slot. Not a repo clone, and not the slot's GitHub login. The same token may instead live in the 1Password item **Sable CLI** (field `token`). Never commit the token | delivered by Iru, not in this repo |
-| Custom Profile "Sable: Notifications" | upload; Slack and Orca notifications on (banners, sounds, badges), no prompt; also on Default Blueprint | `mdm/notifications.mobileconfig` |
+| Custom Profile "Sable: Notifications" | not assigned yet. Upload before `git push origin main:fleet`. Slack and Orca notifications on (banners, sounds, badges), no prompt; also on Default Blueprint. Does not require a supervised Mac | `mdm/notifications.mobileconfig` |
 | Custom Script | run once per device; paste the file with `profile` set for the blueprint | `mdm/iru-bootstrap.sh` |
 | Custom Script | run daily; paste the file | `mdm/iru-doctor.sh` |
 | Custom Script | run every check-in; paste the file (same for both blueprints) | `mdm/iru-update.sh` |

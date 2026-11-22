@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- Iru Custom Profile "Sable: Notifications" (docs/iru.md). macOS allows one notificationsettings
-     payload per Mac, so every app is an entry in this one payload. Needs a supervised Mac (ADE). -->
+<!-- Iru Custom Profile "Sable: Notifications" (docs/iru.md). Slack and Orca are in this one
+     profile so a blueprint has a single notifications item. macOS can take more than one
+     notifications payload, and this one does not require a supervised Mac. -->
 <plist version="1.0">
 <dict>
   <key>PayloadContent</key>

@@ -24,7 +24,7 @@ the candidate's role, and `sable-setup` sets up exactly that access and nothing 
 
 | Role | The bots grant | `trial-inputs.env` lines |
 |---|---|---|
-| DS | sable-inc/deployments (trial branch), the trial agent, Trials org | `TRIAL_GITHUB_USER`, `REPOS="sable-inc/deployments@trial/<first>-<last>"`, `AGENT_PATH`, `AGENT_ID` |
+| DS | sable-inc/deployments (trial branch), the trial agent, Trials org | `TRIAL_GITHUB_USER`, `REPOS="sable-inc/deployments@trial/<first>-<last>"`, `AGENT_PATH`, `AGENT_ID`, `TRIAL_TYPE="ds"` |
 | Eng, FDE | their own new repo `sable-inc/<name>`, Vercel, GCP, Trials org | `TRIAL_GITHUB_USER`, `REPOS="sable-inc/<name>"`, `VERCEL="yes"`, `GCP="yes"` |
 | Design | repos to be decided (deployments for now), Trials org | `TRIAL_GITHUB_USER`, `REPOS` |
 | Security | read-only GCP on the project under review, Trust Center, repos to be decided, Trials org | `TRIAL_GITHUB_USER`, `REPOS`, `GCP="yes"` |
@@ -75,12 +75,13 @@ does not clone it and does not use the slot's GitHub token. It installs with a s
 the admin flag. There is no claude.ai Slack connector and no `#bug-reports` access. Call
 notes come from the checkout's `.sable/reviews` and `sable bundle`.
 
-An Eng or FDE trial replaces the last three lines with:
+An Eng or FDE trial replaces the `REPOS`, `AGENT_PATH`, `AGENT_ID` and `TRIAL_TYPE` lines with:
 
 ```sh
-REPOS="sable-inc/jane-doe"
+REPOS="sable-inc/jane-doe"             # ignored unless TRIAL_TYPE is ds
 VERCEL="yes"
 GCP="yes"                              # gcloud signed in as TRIAL_EMAIL
+TRIAL_TYPE="eng"                       # fde for an FDE trial
 ```
 
 Trials get no API keys by default: Claude Code runs on the slot's Claude seat, and the slot
