@@ -186,8 +186,8 @@ A trial Mac is not erased between trialers. It gets a light cleanup at **midnigh
 trial's last day**, then a `sable-setup` check. A full erase is the exception (the trialer used
 personal accounts on it, a long trial, or Matthew asks) and needs his OK on this exact serial.
 
-1. The Onboarding bot runs the account reset for the slot (`reset_trial.py`) per the wiki.
-   Nobody may be using the Mac
+1. The Onboarding bot's midnight routine runs the account reset for the slot per the wiki, with
+   no per-trial go from Matthew. It is the same routine that runs step 2
 2. At midnight PT on the last day, run the trial cleanup script on the slot's Mac
    (`sable-trial-cleanup`; one script, no other copies of this list). It deletes:
    - everything in Desktop, Downloads and Documents
