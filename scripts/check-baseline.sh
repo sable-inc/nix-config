@@ -46,8 +46,12 @@ grep -q "claude.ai/install.sh" module/darwin/bin/sable-setup &&
 grep -q "chatgpt.com/codex/install.sh" module/darwin/bin/sable-setup &&
 grep -q "\.local/bin" module/darwin/home-manager.nix &&
 ! grep -rq "DISABLE_AUTOUPDATER" module'
+need "pnpm and bun are user-owned installs (not nix) with doctor checks, so they can self-update" sh -c '
+grep -q "pnpm-darwin-arm64" module/darwin/bin/sable-setup && grep -q "bun-darwin-aarch64" module/darwin/bin/sable-setup &&
+grep -q "\"pnpm\"" module/darwin/packages.nix && grep -q "\"bun\"" module/darwin/packages.nix &&
+grep -q "claude codex pnpm bun" module/darwin/bin/sable-doctor && grep -q ".bun/bin" module/darwin/home-manager.nix'
 need "Cursor is a Homebrew cask, not a nix package, and the doctor checks it" sh -c '
-grep -q "\"cursor\"" module/darwin/default.nix && grep -q "code-cursor" module/darwin/packages.nix &&
+grep -q "\"cursor\"" module/darwin/default.nix && grep -q "\"cursor\"" module/darwin/packages.nix &&
 grep -q "/Applications/Cursor.app" module/darwin/bin/sable-doctor'
 need "zsh loads ~/.config/sable/env (per-slot API keys) from .zshenv" grep -q "config/sable/env" module/shared/home-manager.nix
 need "Orca is installed by activation" grep -q "TeamIdentifier=6CX3WHS9HZ" module/darwin/orca.nix

@@ -157,15 +157,15 @@ check "Cursor.app (user-owned, self-updating)" "rerun build-switch" test -d /App
 if [ -d "$HOME/Applications/Home Manager Apps/Cursor.app" ] || [ -d "/Applications/Nix Apps/Cursor.app" ]; then bad "Cursor is also a nix store copy" "rerun build-switch to remove it"; fi
 
 echo "== CLIs"
-for c in git gh node pnpm uv doppler lk; do
+for c in git gh node uv doppler lk; do
   check "$c" "rerun build-switch" have "$c"
 done
-# Claude Code and Codex must be the user's own installs (~/.local/bin), not read-only nix copies,
+# Claude Code, Codex, pnpm and bun must be the user's own installs (~/.local/bin), not read-only nix copies,
 # so Orca and `claude update` / `codex update` can upgrade them.
-for c in claude codex; do
+for c in claude codex pnpm bun; do
   p=$(command -v "$c" 2>/dev/null || true)
   case "$p" in
-    "$HOME"/.local/bin/*) ok "$c is a user-owned install (updates itself)" ;;
+    "$HOME"/.local/bin/*|"$HOME"/.bun/bin/*) ok "$c is a user-owned install (updates itself)" ;;
     "") bad "$c" "run sable-setup (it installs $c with its own installer)" ;;
     *) bad "$c at $p can't update itself" "run sable-setup, then open a new terminal" ;;
   esac

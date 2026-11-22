@@ -13,7 +13,8 @@ let
     pkgs.zig
   ];
   # Cursor is a Homebrew cask on Macs (default.nix) so its own updater works; a store copy is read-only.
-  selfUpdating = [ pkgs.code-cursor ];
+  # Cursor (cask), pnpm and bun (native installers in sable-setup) update themselves; store copies can't.
+  selfUpdating = [ "cursor" "pnpm" "bun" ];
   base = if profile == "trial" then pkgs.lib.subtractLists heavy shared else shared;
 in
-pkgs.lib.subtractLists selfUpdating base
+builtins.filter (p: !(builtins.elem (pkgs.lib.getName p) selfUpdating)) base

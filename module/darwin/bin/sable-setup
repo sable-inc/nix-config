@@ -377,6 +377,34 @@ agent_cli() { # agent_cli <command> <installer url> <shell>
 agent_cli claude https://claude.ai/install.sh bash
 agent_cli codex https://chatgpt.com/codex/install.sh sh
 
+# pnpm and bun: their own release builds, user-owned, so `pnpm self-update` and `bun upgrade` can
+# write them (a nix store copy is read-only and lags). Always the latest release.
+say "pnpm and bun"
+own_dir() { case "$(command -v "$1" 2>/dev/null || true)" in "$HOME"/.local/*|"$HOME"/.bun/*) return 0 ;; *) return 1 ;; esac; }
+if ! own_dir pnpm; then
+  echo "installing pnpm from its release build..."
+  mkdir -p "$HOME/.local/share/pnpm-cli" "$HOME/.local/bin"
+  pnpm_tmp=$(mktemp -d)
+  if /usr/bin/curl --proto '=https' --tlsv1.2 -fsSL -o "$pnpm_tmp/pnpm.tgz" https://github.com/pnpm/pnpm/releases/latest/download/pnpm-darwin-arm64.tar.gz \
+    && rm -rf "$HOME/.local/share/pnpm-cli" && mkdir -p "$HOME/.local/share/pnpm-cli" \
+    && tar -xzf "$pnpm_tmp/pnpm.tgz" -C "$HOME/.local/share/pnpm-cli"; then
+    ln -sfn "$HOME/.local/share/pnpm-cli/pnpm" "$HOME/.local/bin/pnpm"
+  else you "couldn't install pnpm; rerun sable-setup"; fi
+  rm -rf "$pnpm_tmp"
+fi
+echo "pnpm: $(pnpm --version 2>/dev/null | head -1) (updates itself: pnpm self-update)"
+if ! own_dir bun; then
+  echo "installing bun from its release build..."
+  bun_tmp=$(mktemp -d)
+  if /usr/bin/curl --proto '=https' --tlsv1.2 -fsSL -o "$bun_tmp/bun.zip" https://github.com/oven-sh/bun/releases/latest/download/bun-darwin-aarch64.zip \
+    && /usr/bin/unzip -q -o "$bun_tmp/bun.zip" -d "$bun_tmp"; then
+    mkdir -p "$HOME/.bun/bin" && install -m 0755 "$bun_tmp/bun-darwin-aarch64/bun" "$HOME/.bun/bin/bun"
+  else you "couldn't install bun; rerun sable-setup"; fi
+  rm -rf "$bun_tmp"
+fi
+export PATH="$HOME/.bun/bin:$PATH"
+echo "bun: $(bun --version 2>/dev/null | head -1) (updates itself: bun upgrade)"
+
 say "GitHub"
 github_login "$github_user"
 if [ -n "$github_user" ] && [ "$(gh api user --jq .login)" != "$github_user" ]; then
