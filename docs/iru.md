@@ -274,7 +274,10 @@ In this order, and finish each step before the next:
    in at a trial Mac (ask whoever is at the Mac): they would have to sign in to everything again
 2. Check the slot's account is on Sable's Claude team with a seat that includes Claude Code.
    Without one, `claude` asks for Pro or Max at sign-in
-3. Erase the Mac from Iru. It returns to Setup Assistant; start again at step 1
+3. Clean the Mac, not erase it: at midnight PT on the trial's last day run the trial cleanup
+   (`docs/new-mac-runbook.md`, Part H), then the `sable-setup` check. A full erase from Iru
+   (returns to Setup Assistant; start again at step 1) is the exception, with Matthew's OK on
+   that exact serial
 
 ## Adding a Mac to Apple Business
 

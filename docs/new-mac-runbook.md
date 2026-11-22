@@ -111,7 +111,7 @@ For each Mac:
 
 1. Plug in power. Plug in Ethernet if you have it
 2. Turn it on. (A Mac from Part C: if it went past Country or Region before Part D was done,
-   erase it first, Part H.) A reset Mac is already on the first screen after the erase
+   erase it first, Part H.) An erased Mac is already on the first screen
 3. With Ethernet: do nothing, it goes through every screen by itself. Skip to step 5
 4. Without Ethernet, click through only these:
    - **Language:** English, click the arrow
@@ -180,16 +180,32 @@ invite):
 5. After their first week, move the Mac in Iru to **Default Blueprint** (Devices > the Mac's
    name > **Edit device details** > **Edit Blueprint**). See `docs/iru.md`, "New hires after week one"
 
-## Part H. Reset a trial laptop for the next person
+## Part H. Clean a trial laptop for the next person
 
-1. The Onboarding bot runs the account reset for the slot (`reset_trial.py`), and only after
-   Matthew says go. Nobody may be using the Mac
-2. In Iru, open the Mac (Devices > its name) > the **⋯** button at the top right, next to
-   **Edit device details** > **Erase**. Get Matthew's OK on this exact serial first. The blueprint and asset
-   tag stay the same
-3. The Mac restarts to the first setup screen. Go to Part E
+A trial Mac is not erased between trialers. It gets a light cleanup at **midnight PT on the
+trial's last day**, then a `sable-setup` check. A full erase is the exception (the trialer used
+personal accounts on it, a long trial, or Matthew asks) and needs his OK on this exact serial.
 
-Erasing a Mac by hand instead (when Iru can't): if it's set up, System Settings > General >
+1. The Onboarding bot runs the account reset for the slot (`reset_trial.py`) per the wiki.
+   Nobody may be using the Mac
+2. At midnight PT on the last day, run the trial cleanup script on the slot's Mac
+   (`sable-trial-cleanup`; one script, no other copies of this list). It deletes:
+   - everything in Desktop, Downloads and Documents
+   - local code folders and repos
+   - browser profiles, cookies and saved passwords
+   - the trialer's keychain items
+   - SSH keys (`~/.ssh`)
+   - the global git identity (`user.name`, `user.email`) and git credentials
+   - API tokens in dotfiles and config (`~/.config`, `.env` files, gh, vercel and npm auth)
+   - app sign-ins: sign out of every app the trialer installed or used
+3. It leaves Wi-Fi networks, system settings, config profiles and Homebrew packages as they are
+4. Run the `sable-setup` check and read back that it passes and the Mac is signed out
+5. Full erase (exception only, with Matthew's OK on this serial): in Iru, open the Mac
+   (Devices > its name) > the **⋯** button at the top right, next to **Edit device details** >
+   **Erase**. The blueprint and asset tag stay the same. The Mac restarts to the first setup
+   screen; go to Part E
+
+Erasing a Mac by hand instead of from Iru (when Iru can't; same exception rule): if it's set up, System Settings > General >
 Transfer or Reset > **Erase All Content and Settings**. If it's stuck in setup, hold the power
 button until **Loading startup options** appears, click **Options**, then **Continue**, and in
 the menu bar choose **Recovery Assistant > Erase Mac**.
