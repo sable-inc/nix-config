@@ -33,6 +33,7 @@ in
     casks = lib.subtractLists (lib.optional (config.sable.profile == "trial") "devin-desktop") [
       "chatgpt" # Codex desktop is now part of the ChatGPT app.
       "claude"
+      "cursor" # not nix: a store copy is read-only, so Cursor could not update itself
       "devin-desktop"
       "google-chrome"
       "ghostty"
@@ -92,7 +93,7 @@ in
           "/Applications/Nix Apps/Spotify.app"
           "/System/Applications/Utilities/Terminal.app/"
           "/Applications/Ghostty.app"
-          "${config.users.users.${user}.home}/Applications/Home Manager Apps/Cursor.app"
+          "/Applications/Cursor.app"
           "${config.users.users.${user}.home}/Applications/Home Manager Apps/Visual Studio Code.app"
           "/Applications/Nix Apps/Slack.app"
           "/System/Applications/System Settings.app"

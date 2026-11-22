@@ -287,6 +287,10 @@ in
     zsh = {
       enable = true;
       dotDir = config.xdg.configHome + "/zsh";
+      # Per-slot API keys that trial-tools slot-creds writes; ~/.config/sable/env is not managed by nix.
+      envExtra = ''
+        [ -r "$HOME/.config/sable/env" ] && . "$HOME/.config/sable/env"
+      '';
       initContent = ''
         # Options
         setopt NO_CASE_GLOB

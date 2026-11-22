@@ -46,6 +46,10 @@ grep -q "claude.ai/install.sh" module/darwin/bin/sable-setup &&
 grep -q "chatgpt.com/codex/install.sh" module/darwin/bin/sable-setup &&
 grep -q "\.local/bin" module/darwin/home-manager.nix &&
 ! grep -rq "DISABLE_AUTOUPDATER" module'
+need "Cursor is a Homebrew cask, not a nix package, and the doctor checks it" sh -c '
+grep -q "\"cursor\"" module/darwin/default.nix && grep -q "code-cursor" module/darwin/packages.nix &&
+grep -q "/Applications/Cursor.app" module/darwin/bin/sable-doctor'
+need "zsh loads ~/.config/sable/env (per-slot API keys) from .zshenv" grep -q "config/sable/env" module/shared/home-manager.nix
 need "Orca is installed by activation" grep -q "TeamIdentifier=6CX3WHS9HZ" module/darwin/orca.nix
 need "sable-setup: agent sign-ins, Orca repair, DS-only stack, deployments default, CLI from a package-read token" sh -c '
 f=module/darwin/bin/sable-setup

@@ -12,5 +12,8 @@ let
     pkgs.tex-fmt
     pkgs.zig
   ];
+  # Cursor is a Homebrew cask on Macs (default.nix) so its own updater works; a store copy is read-only.
+  selfUpdating = [ pkgs.code-cursor ];
+  base = if profile == "trial" then pkgs.lib.subtractLists heavy shared else shared;
 in
-if profile == "trial" then pkgs.lib.subtractLists heavy shared else shared
+pkgs.lib.subtractLists selfUpdating base

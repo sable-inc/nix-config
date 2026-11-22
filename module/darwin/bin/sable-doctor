@@ -151,9 +151,10 @@ done
 if [ "$profile" = trial ]; then
   for app in Figma Canva; do check "$app.app" "rerun build-switch" test -d "/Applications/$app.app"; done
 fi
-for app in Slack Cursor; do
-  if [ -d "/Applications/Nix Apps/$app.app" ] || [ -d "$HOME/Applications/Home Manager Apps/$app.app" ]; then ok "$app.app"; else bad "$app.app" "rerun build-switch"; fi
-done
+if [ -d "/Applications/Nix Apps/Slack.app" ] || [ -d "$HOME/Applications/Home Manager Apps/Slack.app" ]; then ok "Slack.app"; else bad "Slack.app" "rerun build-switch"; fi
+# Cursor is a Homebrew cask in /Applications so its own updater works (not a read-only nix copy).
+check "Cursor.app (user-owned, self-updating)" "rerun build-switch" test -d /Applications/Cursor.app
+if [ -d "$HOME/Applications/Home Manager Apps/Cursor.app" ] || [ -d "/Applications/Nix Apps/Cursor.app" ]; then bad "Cursor is also a nix store copy" "rerun build-switch to remove it"; fi
 
 echo "== CLIs"
 for c in git gh node pnpm uv doppler lk; do

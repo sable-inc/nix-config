@@ -47,7 +47,7 @@ in
         "/Applications/Google Chrome.app"
         "/Applications/Nix Apps/Slack.app"
         "/Applications/Orca.app"
-        "${config.users.users.${user}.home}/Applications/Home Manager Apps/Cursor.app"
+        "/Applications/Cursor.app"
         "/Applications/ChatGPT.app"
         "/Applications/Claude.app"
         "/System/Applications/Utilities/Terminal.app/"
