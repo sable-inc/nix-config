@@ -1,0 +1,63 @@
+#!/bin/bash
+# Accept every pending GitHub repository invite whose owner is sable-inc.
+# Idempotent: a second run finds nothing left to accept. Trial Macs only.
+# Run as the slot user, with that user's own gh sign-in. Never prints a token.
+# Logs only the repo name and permission to /Library/Logs/sable/github-invites.log.
+# Set SABLE_INVITE_LOG to send the log somewhere else (tests).
+set -euo pipefail
+
+log=${SABLE_INVITE_LOG:-/Library/Logs/sable/github-invites.log}
+
+if ! gh auth status >/dev/null 2>&1; then
+  echo "warning: gh is not signed in; no repository invites accepted" >&2
+  exit 0
+fi
+
+list=$(mktemp)
+trap 'rm -f "$list"' EXIT
+# --jq keeps id, repo name and permission. The raw invitation JSON is never stored or logged.
+if ! gh api --paginate /user/repository_invitations \
+  --jq '.[] | select(.repository.owner.login == "sable-inc") | select(.repository.full_name | startswith("sable-inc/")) | [.id, .repository.name, (.permissions // .permission // "unknown")] | @tsv' \
+  >"$list" 2>/dev/null; then
+  echo "warning: could not list /user/repository_invitations" >&2
+  exit 1
+fi
+
+ensure_log() {
+  local dir
+  dir=$(dirname "$log")
+  if [ -w "$dir" ] && { [ ! -e "$log" ] || [ -w "$log" ]; }; then
+    return 0
+  fi
+  if [ -n "${SABLE_INVITE_LOG:-}" ]; then
+    mkdir -p "$dir"
+    return 0
+  fi
+  sudo mkdir -p -- "$dir"
+  sudo touch -- "$log"
+  sudo chown "$(id -un)" -- "$log"
+  sudo chmod 644 -- "$log"
+}
+
+fail=0
+while IFS=$'\t' read -r id name perm; do
+  [ -n "$id" ] || continue
+  case "$id" in
+    *[!0-9]*) echo "warning: skipped an invite whose id is not numeric" >&2; fail=1; continue ;;
+  esac
+  case "$name" in
+    ''|*[!A-Za-z0-9._-]*) echo "warning: skipped sable-inc invite ${id} (unexpected repository name)" >&2; fail=1; continue ;;
+  esac
+  case "$perm" in
+    read|write|admin|triage|maintain) ;;
+    *) perm=unknown ;;
+  esac
+  if gh api -X PATCH "user/repository_invitations/${id}" >/dev/null 2>&1; then
+    ensure_log
+    printf '%s\tsable-inc/%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$name" "$perm" >>"$log"
+  else
+    echo "warning: could not accept sable-inc/${name}" >&2
+    fail=1
+  fi
+done <"$list"
+exit "$fail"

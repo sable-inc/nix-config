@@ -13,6 +13,7 @@ let
   profile = config.sable.profile;
   sableDoctor = pkgs.writeShellScriptBin "sable-doctor" (builtins.readFile ./bin/sable-doctor);
   sableSetup = pkgs.writeShellScriptBin "sable-setup" (builtins.readFile ./bin/sable-setup);
+  sableAcceptInvites = pkgs.writeShellScriptBin "sable-accept-invites" (builtins.readFile ./bin/sable-accept-invites);
 in
 {
   options.sable.profile = lib.mkOption {
@@ -30,6 +31,7 @@ in
       environment.systemPackages = [
         sableDoctor
         sableSetup
+        sableAcceptInvites
       ];
       homebrew.casks = [
         "notion"

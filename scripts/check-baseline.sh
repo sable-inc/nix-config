@@ -57,7 +57,7 @@ grep -q "sable login --device" $f && grep -q "sable-login-device.txt" $f &&
 grep -q "github-trial-packages-token" $f && ! grep -q "cli-packages-token" $f &&
 grep -q "worktree activate" $f && grep -q "sable-debug-session-hint" $f &&
 grep -q "call-feedback-triage" $f && grep -q "isSableAdmin" $f &&
-grep -q "setup continues" $f && ! grep -q "TRIAL_TYPE must be" $f &&
+grep -q "sable-accept-invites" $f && grep -q "setup continues" $f && ! grep -q "TRIAL_TYPE must be" $f &&
 ! grep -q "gh repo clone.*toolbelt" $f'
 need "sable-doctor: notifications, managed plugins, codex skills, Orca onboarding, sign-ins, DS repo works" sh -c '
 f=module/darwin/bin/sable-doctor
@@ -69,7 +69,9 @@ for l in "notifications on (Iru Sable: Notifications)" "Claude Code managed plug
          "sable-login-device.txt" "sable CLI absent" "sable CLI config absent" \
          "no @sable-inc scope in ~/.bunfig.toml" \
          "sable-debug-session-hint" "call-feedback-triage" \
-         "Orca active workspace is ~/deployments" "Claude tabs open in ~/deployments"; do grep -qF "$l" $f || exit 1; done
+         "Orca active workspace is ~/deployments" "Claude tabs open in ~/deployments" \
+         "no pending sable-inc repository invites" \
+         "gh not signed in; pending sable-inc invites were not checked"; do grep -qF "$l" $f || exit 1; done
 grep -q "all(c == clone for c in claude)" $f && ! grep -q "else ws == clone" $f && ! grep -q "not claude and ws" $f
 for c in "git -C" "git fetch" "gh repo view sable-inc/deployments" "claude auth status" \
          "codex login status" "status --format json" "isAuthenticated" "repo list --json"; do
@@ -158,6 +160,84 @@ printf "%s" "{\"user\":{\"isSableAdmin\":false}}" | sable_is_admin && exit 1
 printf "%s" "{\"user\":{\"role\":\"admin\"}}" | sable_is_admin && exit 1
 true
 '
+need "sable-accept-invites accepts only sable-inc invites, logs name and permission, and is idempotent" bash -c '
+set -euo pipefail
+command -v jq >/dev/null 2>&1 || { echo "jq is required for the stubbed gh test"; exit 1; }
+tmp=$(mktemp -d)
+export SABLE_FAKE_GH_JSON=$tmp/invites.json SABLE_FAKE_GH_PATCHES=$tmp/patches SABLE_INVITE_LOG=$tmp/log
+: > "$SABLE_FAKE_GH_PATCHES"
+cat > "$SABLE_FAKE_GH_JSON" << "JSON"
+[
+  {"id": 101, "permissions": "write", "token": "ghp_SHOULD_NOT_LOG", "repository": {"name": "deployments", "full_name": "sable-inc/deployments", "owner": {"login": "sable-inc"}}},
+  {"id": 202, "permissions": "admin", "repository": {"name": "secret", "full_name": "other-org/secret", "owner": {"login": "other-org"}}},
+  {"id": 303, "permissions": "read", "repository": {"name": "trial-inputs", "full_name": "sable-inc/trial-inputs", "owner": {"login": "sable-inc"}}},
+  {"id": 404, "permissions": "write", "repository": {"name": "deployments", "full_name": "not-sable/deployments", "owner": {"login": "sable-inc"}}}
+]
+JSON
+cat > "$tmp/gh" << "EOF"
+#!/bin/bash
+set -euo pipefail
+if [ "$1" = auth ]; then exit 0; fi
+if [ "$1" != api ]; then exit 1; fi
+shift
+paginate=0
+method=GET
+path=""
+jqprog=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --paginate) paginate=1; shift ;;
+    -X) method=$2; shift 2 ;;
+    --jq) jqprog=$2; shift 2 ;;
+    -H) shift 2 ;;
+    *) path=$1; shift ;;
+  esac
+done
+if [ "$method" = PATCH ]; then
+  printf "%s\n" "$path" >> "$SABLE_FAKE_GH_PATCHES"
+  exit 0
+fi
+[ "$paginate" = 1 ]
+[ -n "$jqprog" ]
+python3 - "$SABLE_FAKE_GH_JSON" "$SABLE_FAKE_GH_PATCHES" << "PY" | jq -r "$jqprog"
+import json, sys
+rows = json.load(open(sys.argv[1]))
+done = set()
+for line in open(sys.argv[2]):
+    tail = line.strip().rsplit("/", 1)[-1]
+    if tail.isdigit():
+        done.add(int(tail))
+left = [row for row in rows if row["id"] not in done]
+json.dump(left, sys.stdout)
+PY
+EOF
+chmod +x "$tmp/gh"
+PATH="$tmp:$PATH" bash module/darwin/bin/sable-accept-invites
+sort "$SABLE_FAKE_GH_PATCHES" > "$tmp/got"
+printf "%s\n" "user/repository_invitations/101" "user/repository_invitations/303" > "$tmp/want"
+diff -u "$tmp/want" "$tmp/got"
+grep -q "$(printf "\t")sable-inc/deployments$(printf "\t")write$" "$SABLE_INVITE_LOG"
+grep -q "$(printf "\t")sable-inc/trial-inputs$(printf "\t")read$" "$SABLE_INVITE_LOG"
+if grep -q ghp_SHOULD_NOT_LOG "$SABLE_INVITE_LOG"; then exit 1; fi
+if grep -q other-org "$SABLE_INVITE_LOG"; then exit 1; fi
+if grep -q secret "$SABLE_INVITE_LOG"; then exit 1; fi
+if grep -q 101 "$SABLE_INVITE_LOG"; then exit 1; fi
+if grep -q 404 "$SABLE_INVITE_LOG"; then exit 1; fi
+before=$(wc -l < "$SABLE_FAKE_GH_PATCHES" | tr -d " ")
+PATH="$tmp:$PATH" bash module/darwin/bin/sable-accept-invites
+after=$(wc -l < "$SABLE_FAKE_GH_PATCHES" | tr -d " ")
+[ "$before" = "$after" ]
+cat > "$tmp/gh" << "EOF"
+#!/bin/bash
+exit 1
+EOF
+chmod +x "$tmp/gh"
+outlog=$tmp/signed-out.log
+SABLE_INVITE_LOG=$outlog PATH="$tmp:$PATH" bash module/darwin/bin/sable-accept-invites
+[ ! -e "$outlog" ]
+grep -q sable-accept-invites module/darwin/profile.nix
+grep -q sable-accept-invites mdm/iru-update.sh
+'
 if ! command -v shellcheck >/dev/null 2>&1; then
   if command -v apt-get >/dev/null 2>&1; then
     echo "installing shellcheck (same as CI)" >&2
@@ -168,6 +248,6 @@ if ! command -v shellcheck >/dev/null 2>&1; then
   echo "FAIL  shellcheck: not installed. CI installs it with apt-get; install shellcheck and rerun." >&2
   fail=1
 else
-  need "shellcheck: bin and mdm scripts" shellcheck -s bash module/darwin/bin/sable-doctor module/darwin/bin/sable-setup mdm/iru-bootstrap.sh mdm/iru-doctor.sh mdm/iru-update.sh mdm/iru-vanta.sh mdm/iru-trial-packages.sh scripts/check-baseline.sh
+  need "shellcheck: bin and mdm scripts" shellcheck -s bash module/darwin/bin/sable-doctor module/darwin/bin/sable-setup module/darwin/bin/sable-accept-invites mdm/iru-bootstrap.sh mdm/iru-doctor.sh mdm/iru-update.sh mdm/iru-vanta.sh mdm/iru-trial-packages.sh scripts/check-baseline.sh
 fi
 if [ "$fail" = 0 ]; then echo "check-baseline: PASS"; else echo "check-baseline: FAIL"; exit 1; fi

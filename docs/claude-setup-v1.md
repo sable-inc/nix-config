@@ -37,8 +37,13 @@ The Onboarding bot writes one file per trial, `<slot>/trial-inputs.env` (for exa
 `trial3/trial-inputs.env`), in the private repo `sable-inc/trial-inputs`, with no secrets in it.
 Nobody copies it: `sable-setup` signs in to GitHub as the slot's account and downloads the file
 for this Mac's slot (from its name, `sable-trial3`). Every slot's GitHub account needs read
-access to that repo (`sable-setup` accepts the invite), including for EL, AE and Marketing trials; `sable-setup` signs those out
-of GitHub again. Leave out any line the role doesn't need:
+access to that repo. Nobody accepts GitHub invites by hand: `sable-accept-invites` lists
+`/user/repository_invitations` and accepts every pending invite whose repository owner is
+`sable-inc`, and no other owner. It runs at setup and at each Iru check-in (`mdm/iru-update.sh`),
+as the slot user with that slot's own `gh` sign-in. It logs only the repo name and permission
+to `/Library/Logs/sable/github-invites.log`. `sable-doctor` fails if a `sable-inc` invite is
+still pending, and warns if `gh` is not signed in. This includes EL, AE and Marketing trials;
+`sable-setup` signs those out of GitHub again after it has the list. Leave out any line the role doesn't need:
 
 ```sh
 # A DS trial

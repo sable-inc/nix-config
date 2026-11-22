@@ -166,7 +166,8 @@ The Mac is ready. Hand it over, or put it away until the trial or start date.
 3. Follow what it prints. Lines starting `>>` are things a person does: sign in to GitHub as
    the slot's account in the browser that opens; when asked **"Authenticate Git with your
    GitHub credentials?"** answer **No**; sign in to Sable with the slot's Google account; click
-   **Add to Chrome** for SableBrowse
+   **Add to Chrome** for SableBrowse. Nobody accepts GitHub invites by hand: setup, and each
+   Iru check-in, accepts pending invites whose owner is `sable-inc` and leaves other owners pending
 4. It ends with a PASS/FAIL list. All PASS: done
 
 **New hire** (Sable's own accounts are ready: Google, Slack, GitHub in sable-inc, 1Password

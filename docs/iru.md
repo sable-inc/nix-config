@@ -37,7 +37,7 @@ Sable Onboard and Sable Trial each get these items (done Nov 5, 2026):
 | Custom Profile "Sable: Notifications" | not assigned yet. Upload before `git push origin main:fleet`. Slack and Orca notifications on (banners, sounds, badges), no prompt; also on Default Blueprint. Does not require a supervised Mac | `mdm/notifications.mobileconfig` |
 | Custom Script | run once per device; paste the file with `profile` set for the blueprint | `mdm/iru-bootstrap.sh` |
 | Custom Script | run daily; paste the file | `mdm/iru-doctor.sh` |
-| Custom Script | run every check-in; paste the file (same for both blueprints) | `mdm/iru-update.sh` |
+| Custom Script | run every check-in; paste the file (same for both blueprints). On a trial Mac it also runs `sable-accept-invites` as user `sable` before the rebuild | `mdm/iru-update.sh` |
 | Custom Script "Sable: Vanta Device Monitor" | run once per device; paste the file with the Vanta key filled in; also on Default Blueprint | `mdm/iru-vanta.sh` |
 | Automated Device Enrollment | Mac: "Skip all screens", auto-advance (needs Ethernet), primary account "Skip", provision local admin `sable` (password is 1Password item **Trial-pw** in that slot's own vault `Trial – <slot>`; the guest does not see a shared Trial vault; no vault id is stored here), made the MDM-enabled user | |
 
@@ -47,6 +47,13 @@ bootstrap item for one with the right `profile`.
 
 `iru-bootstrap.sh` downloads `target/aarch64-darwin/bootstrap` from `main`. To test a branch,
 set `ref` in the pasted script to it, and set it back to `main` afterwards.
+
+On a trial Mac, every check-in of `iru-update.sh` first runs `sable-accept-invites` as the
+`sable` user, with that slot's own `gh` sign-in. It accepts every pending repository invite
+whose owner is `sable-inc` and leaves every other owner pending. The log
+`/Library/Logs/sable/github-invites.log` records the repo name and permission only.
+`sable-setup` runs the same step. `sable-doctor` fails while a `sable-inc` invite is still
+pending, and warns when `gh` is not signed in.
 
 `iru-update.sh` brings installed Macs to a released point of nix-config without anyone
 typing build-switch. Merging to `main` changes no Mac. To release, run

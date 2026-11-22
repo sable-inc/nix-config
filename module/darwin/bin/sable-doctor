@@ -190,6 +190,25 @@ if [ "$trial_type" = ds ]; then
   check "Codex trusts ~/deployments (DS)" "sable-setup" grep -qF "[projects.\"$d\"]" "$HOME/.codex/config.toml"
 fi
 if [ "$profile" = trial ]; then
+  echo "== GitHub repository invites"
+  # Repo names only. The list command's output is the names; its errors are discarded.
+  if ! gh auth status >/dev/null 2>&1; then
+    note "gh not signed in; pending sable-inc invites were not checked"
+  else
+    invite_names=$(mktemp)
+    if gh api --paginate /user/repository_invitations --jq '.[] | select(.repository.owner.login == "sable-inc") | select(.repository.full_name | startswith("sable-inc/")) | .repository.full_name' >"$invite_names" 2>/dev/null; then
+      if [ -s "$invite_names" ]; then
+        bad "no pending sable-inc repository invites" "still pending: $(tr '\n' ' ' <"$invite_names"). sable-accept-invites accepts them at setup and at each Iru check-in."
+      else
+        ok "no pending sable-inc repository invites"
+      fi
+    else
+      bad "no pending sable-inc repository invites" "could not list /user/repository_invitations. sable-accept-invites accepts sable-inc invites at setup and at each Iru check-in."
+    fi
+    rm -f "$invite_names"
+  fi
+fi
+if [ "$profile" = trial ]; then
   echo "== DS repo works"
   if [ "$trial_type" != ds ]; then
     echo "skipped (non-DS)"

@@ -280,9 +280,12 @@ if [ "$profile" = trial ]; then
   case "$host" in sable-trial*) slot="${host#sable-}" ;; *) die "this Mac is $host; a trial Mac is named sable-trial<n>" ;; esac
   say "GitHub (the $slot GitHub account)"
   github_login "the $slot GitHub account" || echo "GitHub sign-in failed; trying the list already on this Mac"
-  # Slot accounts are outside collaborators: accept the repo's pending invite, if any.
-  invite=$(gh api user/repository_invitations --jq ".[] | select(.repository.full_name==\"$inputs_repo\") | .id" 2>/dev/null | head -1) || true
-  [ -z "$invite" ] || gh api -X PATCH "user/repository_invitations/$invite" >/dev/null 2>&1 || true
+  # Outside collaborators: accept every pending sable-inc repository invite. No other owner.
+  if have sable-accept-invites; then
+    sable-accept-invites || echo "warning: a sable-inc repository invite was not accepted" >&2
+  else
+    echo "warning: sable-accept-invites is not installed" >&2
+  fi
   if fetch "$slot/trial-inputs.env" "$inputs"; then echo "got $slot's list from $inputs_repo"
   elif [ -s "$inputs" ]; then echo "using the list already on this Mac ($inputs)"
   else die "no list for $slot: ask the Onboarding bot to add $slot/trial-inputs.env to $inputs_repo (or check this GitHub account can read it)"; fi
@@ -344,6 +347,14 @@ if [ -n "$github_user" ] && [ "$(gh api user --jq .login)" != "$github_user" ]; 
   die "signed in to GitHub as $(gh api user --jq .login), expected $github_user; run: gh auth logout, then sable-setup again"
 fi
 echo "signed in as $(gh api user --jq .login)"
+# Trial slots accept sable-inc repository invites with this sign-in. Idempotent.
+if [ "$profile" = trial ]; then
+  if have sable-accept-invites; then
+    sable-accept-invites || echo "warning: a sable-inc repository invite was not accepted" >&2
+  else
+    echo "warning: sable-accept-invites is not installed" >&2
+  fi
+fi
 # nix-config owns ~/.config/git/config, so the helper goes in ~/.gitconfig (not gh auth setup-git).
 git config --file "$HOME/.gitconfig" --replace-all credential.https://github.com.helper ""
 git config --file "$HOME/.gitconfig" --add credential.https://github.com.helper "!$(command -v gh) auth git-credential"

@@ -49,11 +49,14 @@ does not clone toolbelt. Sign-in is `sable login --device` as that slot's own tr
 Engineering and every other trial type, including idle and unknown, get no sable CLI; setup
 signs it out, deletes `~/.config/sable`, and removes the `@sable-inc` scope if it is already
 there. Only `ds` then gets the Trials org, SableBrowse and the repos in
-`trial-inputs.env`. It stops at each step a person must do and is safe to rerun.
+`trial-inputs.env`. On a trial Mac it also accepts every pending `sable-inc` repository
+invite (`sable-accept-invites`); invites from any other owner stay pending. The same step
+runs at each Iru check-in. It stops at each step a person must do and is safe to rerun.
 
 `sable-doctor [--trial-dir <path>]` prints PASS/FAIL per piece (apps, CLIs, gh auth and
 `read:packages`, npm registry, sable CLI and Trials org, SableBrowse and its Chrome extension,
-and on trial Macs each piece of access in `~/trial-inputs.env`). A trial with no GitHub user
+and on trial Macs each piece of access in `~/trial-inputs.env`, plus pending `sable-inc`
+repository invites). A trial with no GitHub user
 in the file checks only the machine, apps and CLIs. Exit code is the number of FAILs. It never prints a secret.
 
 On an employee Mac, `@sable-inc` packages come from GitHub Packages. The profile exports
