@@ -4,8 +4,9 @@ For the office person setting up a Sable trial laptop. Covers:
 
 - **A. New trial laptop:** a brand-new Mac joins the trial pool
 - **B. Cleanup:** an existing trial laptop gets the next candidate after the light cleanup at
-  midnight PT on the last day (`docs/new-mac-runbook.md`, Part H). Only if Matthew OKs a full
-  erase of that exact Mac: erase it (below), then follow A
+  midnight PT on the last day (`docs/new-mac-runbook.md`, Part H), then the `sable-setup`
+  check. A full erase is the exception and needs Matthew's OK on that exact serial (Part H
+  step 5)
 - **C. New-hire Mac:** Iru does steps 2-6 on the **Sable Onboard** blueprint
   (`docs/iru.md`, "ADE preflight (required before anyone continues Setup Assistant)").
   Do that before anyone continues Setup Assistant. Without Iru, follow hand steps 1-6
@@ -76,10 +77,14 @@ agent) still work.
 
 ## B only: reset first
 
-1. The bots have run the account reset (`reset_trial.py <slot>`) and Matthew has approved it
-2. On the Mac: System Settings > General > Transfer or Reset > **Erase All Content and
-   Settings**. (Later: Iru remote erase)
-3. Continue with A
+The Onboarding bot's midnight routine runs the account reset for the slot, with no per-trial
+go from Matthew.
+
+1. At midnight PT on the trial's last day, the Mac gets the light cleanup in
+   `docs/new-mac-runbook.md`, Part H
+2. Then run the `sable-setup` check
+3. Erasing is the exception and needs Matthew's OK on this exact serial. That is Part H
+   step 5
 
 ## A. By hand, in Terminal.app (not Ghostty, Orca or another terminal)
 
