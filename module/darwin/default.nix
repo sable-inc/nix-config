@@ -15,6 +15,7 @@ in
     ./home-manager.nix
     ./profile.nix
     ./orca.nix
+    ./agents.nix
   ];
   environment = {
     shells = [

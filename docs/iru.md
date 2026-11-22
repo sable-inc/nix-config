@@ -7,8 +7,9 @@ This doc is the background.
 Iru runs the install that `docs/claude-setup-v1.md` does by hand, for trial Macs and for
 new-hire Macs. With Ethernet, Setup Assistant shows no screens; on Wi-Fi it asks only for
 language, country and Wi-Fi. Iru creates the `sable` admin account, then installs the Command Line Tools, Nix and this repo with the trial
-or onboard profile, and reports `sable-doctor` daily. Sign-ins (GitHub, Google, Claude) need
-the person's password and phone, so they stay with that person, guided by the Claude prompt.
+or onboard profile, and reports `sable-doctor` daily. A new hire's own sign-ins (GitHub, Google, Claude) need
+their password and phone, so they stay with that person, guided by the Claude prompt. Trial Macs keep the
+slot's sign-ins across trials (trial-tools `mac-cleanup` KEEP_LOGIN).
 
 | blueprint | for | bootstrap profile |
 |:--|:--|:--|
@@ -28,6 +29,7 @@ Sable Onboard and Sable Trial each get these items (done Nov 5, 2026):
 |:--|:--|:--|
 | Device Name | name and hostname `sable-` + Asset tag | |
 | Custom Profile | upload; installs the SableBrowse and 1Password Chrome extensions | `mdm/chrome-sablebrowse.mobileconfig` |
+| Custom Profile "Sable: Notifications" | upload; Slack and Orca notifications on (banners, sounds, badges), no prompt; also on Default Blueprint | `mdm/notifications.mobileconfig` |
 | Custom Script | run once per device; paste the file with `profile` set for the blueprint | `mdm/iru-bootstrap.sh` |
 | Custom Script | run daily; paste the file | `mdm/iru-doctor.sh` |
 | Custom Script | run every check-in; paste the file (same for both blueprints) | `mdm/iru-update.sh` |

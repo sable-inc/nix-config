@@ -49,7 +49,12 @@ TRIAL_GITHUB_USER="<GITHUB_USER>"      # the slot's GitHub account; empty = no t
 REPOS="sable-inc/deployments@trial/jane-doe"   # space-separated, @branch optional
 AGENT_PATH="trials/partner-qualifier-jane"     # inside ~/deployments
 AGENT_ID="agt_..."                     # the trial agent, never a live one
+TRIAL_TYPE="ds"                        # ds | eng | ae | design
 ```
+
+`TRIAL_TYPE="ds"` makes `sable-setup` add `~/deployments` in Cursor, Claude Code (trusted folder),
+Codex (trusted project) and Orca (`orca repo add`); it needs `sable-inc/deployments` in `REPOS`.
+Every other type gets no repo added in those apps (its repos are still cloned).
 
 An Eng or FDE trial replaces the last three lines with:
 

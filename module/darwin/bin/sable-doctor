@@ -25,10 +25,10 @@ done
 profile_file=/etc/nix-darwin/local.nix
 profile=$(grep -o 'sable.profile *= *"[a-z]*"' "$profile_file" 2>/dev/null | grep -o '"[a-z]*"' | tr -d '"')
 # Trial Macs need only the access grokbot listed; other Macs need the GitHub and Sable tools.
-email=""; repos=""; agent_path=""; api_keys=""; vercel=""; gcp=""; technical=1
+email=""; repos=""; agent_path=""; api_keys=""; vercel=""; gcp=""; technical=1; trial_type=""
 if [ "$profile" = trial ]; then
   email=$(input TRIAL_EMAIL); repos=$(input REPOS); agent_path=$(input AGENT_PATH)
-  api_keys=$(input API_KEYS); vercel=$(input VERCEL); gcp=$(input GCP)
+  api_keys=$(input API_KEYS); vercel=$(input VERCEL); gcp=$(input GCP); trial_type=$(input TRIAL_TYPE)
   [ -n "$(input TRIAL_GITHUB_USER)" ] || technical=0
   [ -n "$agent_path" ] && [ -z "$trial_dir" ] && trial_dir="$HOME/deployments/$agent_path"
 fi
@@ -58,6 +58,39 @@ echo "== CLIs"
 for c in git gh node pnpm uv doppler claude codex lk; do
   check "$c" "rerun build-switch" have "$c"
 done
+
+echo "== notifications and agents (nix-config agents.nix, Iru Sable: Notifications)"
+np="/Library/Managed Preferences/com.apple.notificationsettings.plist"
+for b in com.tinyspeck.slackmacgap:Slack com.stablyai.orca:Orca; do
+  check "${b#*:} notifications on (Iru Sable: Notifications)" "assign the Iru profile Sable: Notifications to this Mac's blueprint" \
+    sh -c "plutil -convert xml1 -o - '$np' 2>/dev/null | grep -q '<string>${b%%:*}</string>'"
+done
+ms="/Library/Application Support/ClaudeCode/managed-settings.json"
+check "Claude Code managed plugins: pstack + codex review" "rerun build-switch (agents.nix)" \
+  sh -c "grep -q '\"pstack@cursor-plugins\": *true' '$ms' && grep -q '\"codex@openai-codex\": *true' '$ms'"
+check "Codex admin skills: pstack in /etc/codex/skills" "rerun build-switch (agents.nix)" test -f /etc/codex/skills/architect/SKILL.md
+od="$HOME/Library/Application Support/Orca"
+if [ ! -e "$od" ]; then bad "Orca onboarding finished" "sable-setup (seeds Orca's finished onboarding)"
+elif [ -f "$od/orca-data.json" ] && grep -Eq '"closedAt": *null' "$od/orca-data.json"; then bad "Orca onboarding finished" "finish Orca's setup screens, then bump ORCA_FLOW_VERSION in sable-setup if Orca changed them"
+else ok "Orca onboarding finished"; fi
+if [ "$technical" = 1 ]; then
+  # A trial Mac keeps the slot's sign-ins across trials, so a missing one is a regression (FAIL).
+  # Elsewhere it is the person's day-one step (WARN until they sign in).
+  for a in "Claude Code:claude auth status" "Codex:codex login status"; do
+    if ${a#*:} >/dev/null 2>&1; then ok "${a%%:*} signed in"
+    elif [ "$profile" = trial ]; then bad "${a%%:*} signed in" "sable-setup (then check the light cleanup kept it: trial-tools KEEP_LOGIN)"
+    else note "${a%%:*} not signed in yet: sable-setup"; fi
+  done
+fi
+if [ "$trial_type" = ds ]; then
+  d="$HOME/deployments"
+  check "Claude Code trusts ~/deployments (DS)" "sable-setup" sh -c "jq -e --arg d '$d' '.projects[\$d].hasTrustDialogAccepted == true' '$HOME/.claude.json'"
+  check "Codex trusts ~/deployments (DS)" "sable-setup" grep -qF "[projects.\"$d\"]" "$HOME/.codex/config.toml"
+  orca_cli=/Applications/Orca.app/Contents/Resources/bin/orca
+  if "$orca_cli" repo list --json >/dev/null 2>&1; then
+    check "Orca has ~/deployments (DS)" "sable-setup" sh -c "'$orca_cli' repo list --json | grep -qF '\"$d\"'"
+  else note "Orca not running: open Orca to check ~/deployments is added"; fi
+fi
 
 if [ "$technical" = 1 ]; then
 echo "== GitHub + npm"

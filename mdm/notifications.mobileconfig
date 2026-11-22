@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Iru Custom Profile "Sable: Notifications" (docs/iru.md). macOS allows one notificationsettings
+     payload per Mac, so every app is an entry in this one payload. Needs a supervised Mac (ADE). -->
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>NotificationSettings</key>
+      <array>
+        <dict>
+          <key>BundleIdentifier</key>
+          <string>com.tinyspeck.slackmacgap</string>
+          <key>NotificationsEnabled</key>
+          <true/>
+          <key>AlertType</key>
+          <integer>1</integer>
+          <key>BadgesEnabled</key>
+          <true/>
+          <key>SoundsEnabled</key>
+          <true/>
+          <key>ShowInNotificationCenter</key>
+          <true/>
+          <key>ShowInLockScreen</key>
+          <true/>
+          <key>CriticalAlertEnabled</key>
+          <false/>
+        </dict>
+        <dict>
+          <key>BundleIdentifier</key>
+          <string>com.stablyai.orca</string>
+          <key>NotificationsEnabled</key>
+          <true/>
+          <key>AlertType</key>
+          <integer>1</integer>
+          <key>BadgesEnabled</key>
+          <true/>
+          <key>SoundsEnabled</key>
+          <true/>
+          <key>ShowInNotificationCenter</key>
+          <true/>
+          <key>ShowInLockScreen</key>
+          <true/>
+          <key>CriticalAlertEnabled</key>
+          <false/>
+        </dict>
+      </array>
+      <key>PayloadDisplayName</key>
+      <string>Notifications: Slack and Orca on</string>
+      <key>PayloadIdentifier</key>
+      <string>com.sable.notifications.payload</string>
+      <key>PayloadType</key>
+      <string>com.apple.notificationsettings</string>
+      <key>PayloadUUID</key>
+      <string>AF479B78-83DB-4DBE-B9BE-1CBED08F6DF4</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+  </array>
+  <key>PayloadDisplayName</key>
+  <string>Sable: Notifications (Slack, Orca)</string>
+  <key>PayloadIdentifier</key>
+  <string>com.sable.notifications</string>
+  <key>PayloadScope</key>
+  <string>System</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>17CE20C9-E758-40C8-A779-424687078F8C</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>

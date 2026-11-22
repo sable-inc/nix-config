@@ -34,7 +34,7 @@ fetch() { # fetch <path in the inputs repo> <local file>: true if downloaded
   else rm -f "$tmp"; return 1; fi
 }
 
-email="" github_user="" repos="" agent_path="" agent_id="" api_keys="" vercel="" gcp=""
+email="" github_user="" repos="" agent_path="" agent_id="" api_keys="" vercel="" gcp="" trial_type=""
 if [ "$profile" = trial ]; then
   # The Onboarding bot writes each slot's list to a private repo; this Mac's name gives the slot.
   inputs_repo="sable-inc/trial-inputs"
@@ -53,8 +53,14 @@ if [ "$profile" = trial ]; then
   fi
   email=$(input TRIAL_EMAIL); github_user=$(input TRIAL_GITHUB_USER); repos=$(input REPOS)
   agent_path=$(input AGENT_PATH); agent_id=$(input AGENT_ID)
-  api_keys=$(input API_KEYS); vercel=$(input VERCEL); gcp=$(input GCP)
+  api_keys=$(input API_KEYS); vercel=$(input VERCEL); gcp=$(input GCP); trial_type=$(input TRIAL_TYPE)
   [ -n "$email" ] || die "TRIAL_EMAIL is empty in $inputs"
+  # DS trials get sable-inc/deployments added in Cursor, Claude Code, Codex and Orca; every other type gets none.
+  case "$trial_type" in
+    ds) case " $repos " in *" sable-inc/deployments"[@\ ]*) ;; *) die "TRIAL_TYPE=ds needs sable-inc/deployments in REPOS" ;; esac ;;
+    eng|ae|design|"") ;;
+    *) die "TRIAL_TYPE must be ds, eng, ae or design (got '$trial_type')" ;;
+  esac
   [ "$(input TRIAL_SLOT)" = "$slot" ] || die "this Mac is $host, but $inputs is for sable-$(input TRIAL_SLOT)"
   if [ -z "$github_user" ]; then
     if [ -n "$repos$agent_path$api_keys$vercel$gcp" ]; then die "TRIAL_GITHUB_USER is empty but other access is listed"; fi
@@ -114,6 +120,52 @@ for spec in $repos; do
   [ -d "$dir/.git" ] || gh repo clone "$repo" "$dir"
   [ -z "$branch" ] || git -C "$dir" checkout "$branch"
 done
+
+say "Claude Code and Codex (Orca uses these sign-ins)"
+# Trial Macs keep the slot's sign-ins across trials (trial-tools mac-cleanup KEEP_LOGIN), so this
+# normally finds them signed in and does nothing.
+if claude auth status >/dev/null 2>&1; then echo "Claude Code: signed in"
+else
+  you "Sign in to Claude Code${email:+ as $email} (Continue with Google) in the browser that opens."
+  claude auth login || { you "Or run claude, type /login, finish in the browser, then /exit."; wait_enter; }
+fi
+if codex login status >/dev/null 2>&1; then echo "Codex: signed in"
+else
+  you "Sign in to Codex with ChatGPT${email:+ as $email} in the browser that opens."
+  codex login
+fi
+
+say "Orca"
+# Orca's first-run wizard only shows when its data has no finished onboarding. A fresh Mac (or a trial
+# Mac after the light cleanup, which removes Orca's data) gets the finished state seeded here.
+# ORCA_FLOW_VERSION pins Orca's onboarding flow version (upstream src/shared/onboarding/onboarding-defaults.ts);
+# if Orca changes it, sable-doctor's "Orca onboarding finished" line turns red and this pin gets bumped.
+ORCA_FLOW_VERSION=4
+orca_data="$HOME/Library/Application Support/Orca"
+if [ ! -e "$orca_data" ]; then
+  osascript -e 'quit app "Orca"' >/dev/null 2>&1 || true
+  mkdir -p "$orca_data"
+  printf '{"onboarding":{"flowVersion":%s,"closedAt":%s000,"outcome":"completed","lastCompletedStep":5}}\n' \
+    "$ORCA_FLOW_VERSION" "$(date +%s)" >"$orca_data/orca-data.json"
+  echo "seeded Orca's finished onboarding"
+else echo "Orca already set up"; fi
+if [ "$trial_type" = ds ] && [ -d "$HOME/deployments/.git" ]; then
+  say "sable-inc/deployments in Cursor, Claude Code, Codex and Orca (DS trial)"
+  d="$HOME/deployments"
+  # Claude Code: trust the folder, so the first claude run there asks nothing.
+  cj="$HOME/.claude.json"; [ -s "$cj" ] || echo '{}' >"$cj"
+  jq --arg d "$d" '.projects[$d] = ((.projects[$d] // {}) + {hasTrustDialogAccepted: true})' "$cj" >"$cj.tmp" && mv "$cj.tmp" "$cj"
+  # Codex: trusted project.
+  mkdir -p "$HOME/.codex"; ct="$HOME/.codex/config.toml"
+  grep -qF "[projects.\"$d\"]" "$ct" 2>/dev/null || printf '\n[projects."%s"]\ntrust_level = "trusted"\n' "$d" >>"$ct"
+  # Orca: register the repo (the CLI talks to the running app).
+  open -ga Orca; orca_cli=/Applications/Orca.app/Contents/Resources/bin/orca
+  for _ in 1 2 3 4 5 6 7 8 9 10; do "$orca_cli" repo list >/dev/null 2>&1 && break; sleep 3; done
+  "$orca_cli" repo list --json 2>/dev/null | grep -qF "\"$d\"" || "$orca_cli" repo add --path "$d" --json >/dev/null
+  # Cursor: open it, so it is the first recent workspace.
+  open -ga Cursor "$d"
+  echo "added $d"
+fi
 
 if [ -n "$agent_path" ]; then
   say "Trial agent $agent_path"

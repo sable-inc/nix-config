@@ -198,7 +198,8 @@ trial's last day**, then a `sable-setup` check. A full erase is the exception an
    - SSH keys (`~/.ssh`)
    - the global git identity (`user.name`, `user.email`) and git credentials
    - API tokens in dotfiles and config (`~/.config`, `.env` files, gh, vercel and npm auth)
-   - app sign-ins: sign out of every app the trialer installed or used
+   - app sign-ins: signs out of the trialer's personal apps; keeps the slot's Claude Code, Codex, Cursor,
+     Claude app, ChatGPT app, Slack and 1Password sign-ins and clears their chats and history (trial-tools KEEP_LOGIN)
 3. It leaves Wi-Fi networks, system settings, config profiles and Homebrew packages as they are
 4. Run the `sable-setup` check and read back that it passes and the Mac is signed out
 5. Full erase (exception only, with Matthew's OK on this serial): in Iru, open the Mac
