@@ -60,7 +60,9 @@ Build and activate the configuration:
 nix --extra-experimental-features 'nix-command flakes' run path:.#build-switch
 ```
 
-Enter your administrator password when prompted. After the command reports `switched`, open a new Terminal and verify the installation:
+Enter your administrator password when prompted. After the command reports `switched`, open a new Terminal and verify the installation.
+
+On a trial Mac the sable CLI is installed only when `TRIAL_TYPE=ds`. bun reads `~/.bunfig.toml` (written by Iru, never committed) and the slot signs in once with `sable login --device` as its own trial account. Engineering and every other trial type, including an idle slot, do not get it; `sable-setup` removes the binary, `~/.config/sable`, and the `@sable-inc` scope if they are already there. See `docs/claude-setup-v1.md`.
 
 ```sh
 darwin-rebuild --list-generations

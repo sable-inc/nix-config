@@ -24,8 +24,9 @@ The background (why it works this way) is in `docs/iru.md`. You don't need it to
 - The Mac and its charger. An Ethernet cable and USB-C Ethernet adapter if you have them
   (with Ethernet, the Mac sets itself up with no clicks; without, about four clicks)
 - Access to Iru (sable.iru.com) and Apple Business (business.apple.com)
-- The `sable` password: the 1Password item **Trial-pw** (ask Matthew for access). Iru
-  creates the `sable` account with it. Never write it in a doc, Slack or a ticket
+- The `sable` password: the 1Password item **Trial-pw** in that slot's own vault `Trial – <slot>`
+  (for example `Trial – trial1`; ask Matthew for access). The guest does not see a shared Trial vault.
+  Iru creates the `sable` account with it. Never write it in a doc, Slack or a ticket, and no vault id is stored here
 - Retail Macs only: an iPhone, see Part C
 
 ## Part A. Decide the name and type
@@ -130,7 +131,7 @@ For each Mac:
 7. The login screen shows the Mac's name (`sable-trial1` or `sable-jane`) and the user
    **sable**. If the name is still something like "MacBook Pro", that's fine for now; Iru
    renames it within the hour
-8. Log in as **sable** with the password from 1Password item **Trial-pw**. If a box asks for the password to
+8. Log in as **sable** with the password from 1Password item **Trial-pw** in vault `Trial – <slot>`. If a box asks for the password to
    turn on FileVault, type the same password and click **OK**
 9. Leave it **logged in, plugged in, lid open** until Part F says Pass. Don't install or
    change anything. The screen locking by itself is fine. A closed lid, a dead battery or the
@@ -197,15 +198,19 @@ trial's last day**, then a `sable-setup` check. A full erase is the exception an
    - the trialer's keychain items
    - SSH keys (`~/.ssh`)
    - the global git identity (`user.name`, `user.email`) and git credentials
-   - API tokens in dotfiles and config (`~/.config`, `.env` files, gh, vercel and npm auth)
+   - API tokens in dotfiles and config (`~/.config`, `.env` files, gh, vercel and npm auth), except
+     `~/.config/sable/credentials.json` on a DS slot (the slot's own sable sign-in; never copy it from another machine)
    - app sign-ins: signs out of the trialer's personal apps; keeps the slot's Chrome, Claude Code, Codex, Cursor,
      Claude app, ChatGPT app, Slack and 1Password sign-ins and clears their chats and history (trial-tools KEEP_LOGIN).
      Chrome sync is off on trial Macs (`mdm/chrome-trial-sync.mobileconfig`), so synced history and bookmarks do not come back
 3. It leaves Wi-Fi networks, system settings, config profiles and Homebrew packages as they are
-4. Run the `sable-setup` check and read back that it passes. The trialer's own apps are signed out. The slot's Chrome, Claude Code, Codex, Cursor, Claude app, ChatGPT, Slack and 1Password sign-ins remain. GitHub does not: cleanup deletes it, and `sable-setup` signs the slot back in.
-   `sable-doctor` also requires `sable --version` and `sable whoami` as a Sable admin on every
-   slot. The CLI package-read token is the 1Password item **Sable CLI** (field `token`) or
-   `/Library/Application Support/Sable/cli-packages-token`, not the slot's GitHub login
+4. Run the `sable-setup` check and read back that it passes. The trialer's own apps are signed out. The slot's Chrome, Claude Code, Codex, Cursor, Claude app, ChatGPT, Slack and 1Password sign-ins remain, and on a DS slot so does `~/.config/sable/credentials.json`. GitHub does not: cleanup deletes it, and `sable-setup` signs the slot back in.
+   On a DS trial, `sable-doctor` requires `sable --version` and `sable whoami` as that slot's
+   own trial account (`trial@sable.ai` on `sable-trial`, `trial1@sable.ai` on `sable-trial1`).
+   The package token is in `~/.bunfig.toml`, written by Iru from `github-trial-packages-token`,
+   not the slot's GitHub login. If whoami fails, setup runs `sable login --device` and writes
+   the URL and code to `/Library/Logs/sable/sable-login-device.txt`. Every other trial type
+   must have no `sable` binary, no `~/.config/sable`, and no `@sable-inc` scope in `~/.bunfig.toml`.
 5. Full erase (exception only, with Matthew's OK on this serial): in Iru, open the Mac
    (Devices > its name) > the **⋯** button at the top right, next to **Edit device details** >
    **Erase**. The blueprint and asset tag stay the same. The Mac restarts to the first setup
@@ -242,7 +247,7 @@ Use this only when Matthew says so (for example a Mac that Configurator can't ad
 one case where you create the account yourself:
 
 1. Setup Assistant: create an admin account with the short name exactly `sable` and the
-   password from 1Password item **Trial-pw**, then log in
+   password from 1Password item **Trial-pw** in vault `Trial – <slot>`, then log in
 2. System Settings > General > Sharing > set the name to `sable-<asset tag>`
 3. Enroll at Iru: Enrollment > tab **Manual Enrollment**, use the blueprint's enrollment
    code there, and follow the link on the Mac. Then in Iru: Devices > the Mac's name > **Edit device details** > **Edit asset tag** >

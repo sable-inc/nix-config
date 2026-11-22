@@ -5,9 +5,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 fail=0
-need() { # need <description> <command...>
-  local d=$1; shift
-  if "$@" >/dev/null; then echo "ok    $d"; else echo "FAIL  $d"; fail=1; fi
+need() { # need <description> <command...>; a failure prints the command's output
+  local d=$1 out
+  shift
+  if out=$("$@" 2>&1); then echo "ok    $d"
+  else echo "FAIL  $d"; printf '%s\n' "$out" >&2; fail=1; fi
 }
 py() { python3 -I -c "$@"; }
 
@@ -44,8 +46,15 @@ f=module/darwin/bin/sable-setup
 grep -q "claude auth status" $f && grep -q "codex login status" $f &&
 grep -q "ORCA_FLOW_VERSION=" $f && grep -q "closedAt != null" $f &&
 grep -q ".onboarding // {}" $f && grep -q "ds_repos" $f &&
-grep -q "setup-existing-folder" $f && grep -q "@sable-inc/toolbelt" $f &&
-grep -q "Sable CLI" $f && grep -q "cli-packages-token" $f &&
+grep -q "project setup-clone" $f && grep -q -- "--destination" $f &&
+grep -q -- "--folder-name deployments" $f && grep -q "https://github.com/sable-inc/deployments" $f &&
+! grep -q "setup-existing-folder" $f && grep -q "@sable-inc/toolbelt" $f &&
+grep -q "remove_sable_cli" $f && grep -q "bun remove -g @sable-inc/toolbelt" $f &&
+grep -q "sable logout" $f && ! grep -q "every trial slot" $f && ! grep -q "every slot" $f &&
+grep -q "bunfig.toml" $f && grep -q "install.scopes" $f &&
+grep -q "bun add -g @sable-inc/toolbelt@^0.80.0 @sable-inc/e2e @sable-inc/wiki" $f &&
+grep -q "sable login --device" $f && grep -q "sable-login-device.txt" $f &&
+grep -q "github-trial-packages-token" $f && ! grep -q "cli-packages-token" $f &&
 grep -q "worktree activate" $f && grep -q "sable-debug-session-hint" $f &&
 grep -q "call-feedback-triage" $f && grep -q "isSableAdmin" $f &&
 grep -q "setup continues" $f && ! grep -q "TRIAL_TYPE must be" $f &&
@@ -56,14 +65,19 @@ for l in "notifications on (Iru Sable: Notifications)" "Claude Code managed plug
          "Codex admin skills: pstack in /etc/codex/skills" "Orca onboarding finished" "signed in" \
          "Claude Code trusts ~/deployments (DS)" "Codex trusts ~/deployments (DS)" \
          "== DS repo works" "skipped (non-DS)" "sable CLI installed" \
-         "sable --version" "sable whoami: Sable admin" "isSableAdmin" \
-         "sable-debug-session-hint" "call-feedback-triage" "Orca workspace or Claude tab cwd"; do grep -qF "$l" $f || exit 1; done
+         "sable --version" "sable whoami: this slot" \
+         "sable-login-device.txt" "sable CLI absent" "sable CLI config absent" \
+         "no @sable-inc scope in ~/.bunfig.toml" \
+         "sable-debug-session-hint" "call-feedback-triage" \
+         "Orca active workspace is ~/deployments" "Claude tabs open in ~/deployments"; do grep -qF "$l" $f || exit 1; done
+grep -q "all(c == clone for c in claude)" $f && ! grep -q "else ws == clone" $f && ! grep -q "not claude and ws" $f
 for c in "git -C" "git fetch" "gh repo view sable-inc/deployments" "claude auth status" \
          "codex login status" "status --format json" "isAuthenticated" "repo list --json"; do
   grep -qF "$c" $f || exit 1
   grep -qF "$c" module/darwin/bin/sable-setup || exit 1
 done'
 need "trial policy: only ds gets Sable repos and tools; unknown and empty do not stop; deployments is added when missing" bash -c '
+set -e
 eval "$(sed -n "/^# BEGIN sable_trial_policy$/,/^# END sable_trial_policy$/p" module/darwin/bin/sable-setup)"
 for t in eng fde design ae el marketing; do
   [ "$(sable_trial_kind "$t")" = known ] || exit 1
@@ -82,8 +96,28 @@ sable_stack onboard ""
 # Non-DS, empty and unknown do none of the toolbelt workflow, org login, SableBrowse or clones.
 grep -q "if sable_stack \"\$profile\" \"\$trial_type\"" module/darwin/bin/sable-setup
 # The CLI install does not read the slot GitHub token.
-awk "/^install_sable_cli\\(\\)/,/^}/" module/darwin/bin/sable-setup | grep -q with_sable_packages_token
+awk "/^install_sable_cli\\(\\)/,/^}/" module/darwin/bin/sable-setup | grep -q bunfig_ready
+awk "/^install_sable_cli\\(\\)/,/^}/" module/darwin/bin/sable-setup | grep -q "bun add -g @sable-inc/toolbelt@^0.80.0 @sable-inc/e2e @sable-inc/wiki"
 awk "/^install_sable_cli\\(\\)/,/^}/" module/darwin/bin/sable-setup | grep -q "gh auth token" && exit 1 || true
+'
+need "bunfig check accepts a real token and rejects placeholders" bash -c '
+set -e
+eval "$(sed -n "/^bunfig_ready()/,/^}/p" module/darwin/bin/sable-setup)"
+HOME=$(mktemp -d)
+bunfig_ready && exit 1
+printf "%s\n" "[install.scopes]" "\"@sable-inc\" = { url = \"https://npm.pkg.github.com\", token = \"<token>\" }" > "$HOME/.bunfig.toml"
+bunfig_ready && exit 1
+printf "%s\n" "[install.scopes]" "\"@sable-inc\" = { url = \"https://npm.pkg.github.com\", token = \"\" }" > "$HOME/.bunfig.toml"
+bunfig_ready && exit 1
+printf "%s\n" "[install.scopes]" "\"@sable-inc\" = { url = \"https://npm.pkg.github.com\", token = \"read-packages\" }" > "$HOME/.bunfig.toml"
+bunfig_ready
+'
+need "Iru writes only ~/.bunfig.toml and ships no token" sh -c '
+f=mdm/iru-trial-packages.sh
+grep -q "github-trial-packages-token" $f && grep -q "token=\"\"" $f &&
+grep -q "\[install.scopes\]" $f && grep -q "@sable-inc" $f &&
+grep -q "npm.pkg.github.com" $f && grep -q "chmod 600" $f &&
+grep -q "does not touch credentials.json" $f
 '
 need "Chrome sync is off for trial only; the shared SableBrowse profile does not set SyncDisabled" py '
 import plistlib
@@ -124,5 +158,16 @@ printf "%s" "{\"user\":{\"isSableAdmin\":false}}" | sable_is_admin && exit 1
 printf "%s" "{\"user\":{\"role\":\"admin\"}}" | sable_is_admin && exit 1
 true
 '
-need "shellcheck: bin and mdm scripts" shellcheck -s bash module/darwin/bin/sable-doctor module/darwin/bin/sable-setup mdm/iru-bootstrap.sh mdm/iru-doctor.sh mdm/iru-update.sh mdm/iru-vanta.sh scripts/check-baseline.sh
+if ! command -v shellcheck >/dev/null 2>&1; then
+  if command -v apt-get >/dev/null 2>&1; then
+    echo "installing shellcheck (same as CI)" >&2
+    sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+  fi
+fi
+if ! command -v shellcheck >/dev/null 2>&1; then
+  echo "FAIL  shellcheck: not installed. CI installs it with apt-get; install shellcheck and rerun." >&2
+  fail=1
+else
+  need "shellcheck: bin and mdm scripts" shellcheck -s bash module/darwin/bin/sable-doctor module/darwin/bin/sable-setup mdm/iru-bootstrap.sh mdm/iru-doctor.sh mdm/iru-update.sh mdm/iru-vanta.sh mdm/iru-trial-packages.sh scripts/check-baseline.sh
+fi
 if [ "$fail" = 0 ]; then echo "check-baseline: PASS"; else echo "check-baseline: FAIL"; exit 1; fi

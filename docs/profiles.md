@@ -42,19 +42,23 @@ installer fails with "Operation not permitted".
 
 `sable-setup` finishes a trial or new-hire Mac after the install: GitHub sign-in, and on an
 employee Mac the sable CLI (Sable org) and SableBrowse from that Mac's `gh auth token`. A
-trial Mac installs `@sable-inc/toolbelt` with a separate `read:packages` token (1Password item
-**Sable CLI**, field `token`, or `/Library/Application Support/Sable/cli-packages-token`), not
-the slot's GitHub login, and does not clone toolbelt. Only `TRIAL_TYPE=ds` then gets the
-Trials org, SableBrowse and the repos in `trial-inputs.env`. It stops at each step a person
-must do and is safe to rerun.
+DS trial (`TRIAL_TYPE=ds`) installs `@sable-inc/toolbelt@^0.80.0`, `@sable-inc/e2e` and
+`@sable-inc/wiki` with bun. The `read:packages` token arrives from Iru in `~/.bunfig.toml`
+(mode `600`, `[install.scopes]`, `@sable-inc`), not from the slot's GitHub login, and setup
+does not clone toolbelt. Sign-in is `sable login --device` as that slot's own trial account.
+Engineering and every other trial type, including idle and unknown, get no sable CLI; setup
+signs it out, deletes `~/.config/sable`, and removes the `@sable-inc` scope if it is already
+there. Only `ds` then gets the Trials org, SableBrowse and the repos in
+`trial-inputs.env`. It stops at each step a person must do and is safe to rerun.
 
 `sable-doctor [--trial-dir <path>]` prints PASS/FAIL per piece (apps, CLIs, gh auth and
 `read:packages`, npm registry, sable CLI and Trials org, SableBrowse and its Chrome extension,
 and on trial Macs each piece of access in `~/trial-inputs.env`). A trial with no GitHub user
 in the file checks only the machine, apps and CLIs. Exit code is the number of FAILs. It never prints a secret.
 
-`@sable-inc` packages come from GitHub Packages. The profile exports
-`NPM_TOKEN="$(gh auth token)"`, and `~/.npmrc` refers to it:
+On an employee Mac, `@sable-inc` packages come from GitHub Packages. The profile exports
+`NPM_TOKEN="$(gh auth token)"`, and `~/.npmrc` refers to it. A DS trial does not use that
+token for the CLI; bun reads `~/.bunfig.toml` instead:
 
 ```sh
 gh auth refresh -s read:packages

@@ -10,7 +10,8 @@ language, country and Wi-Fi. Iru creates the `sable` admin account, then install
 or onboard profile, and reports `sable-doctor` daily. A new hire's own sign-ins (GitHub, Google, Claude) need
 their password and phone, so they stay with that person, guided by the Claude prompt. Trial Macs keep the
 slot's Chrome, Claude Code, Codex, Cursor, Claude app, ChatGPT, Slack and 1Password sign-ins across trials
-(trial-tools `mac-cleanup` KEEP_LOGIN). GitHub auth is deleted with the other tokens, and `sable-setup` signs
+(trial-tools `mac-cleanup` KEEP_LOGIN). On a DS slot it also keeps `~/.config/sable/credentials.json`
+(the slot's own `sable login`). Never copy that file from another machine. GitHub auth is deleted with the other tokens, and `sable-setup` signs
 the slot back in.
 
 | blueprint | for | bootstrap profile |
@@ -32,13 +33,13 @@ Sable Onboard and Sable Trial each get these items (done Nov 5, 2026):
 | Device Name | name and hostname `sable-` + Asset tag | |
 | Custom Profile | upload; installs the SableBrowse and 1Password Chrome extensions. Also on Default Blueprint (before a hire moves). Does not disable Chrome sync | `mdm/chrome-sablebrowse.mobileconfig` |
 | Custom Profile "Sable: Chrome sync off" | Sable Trial only. `SyncDisabled` so a trialer's history and bookmarks cannot return after cleanup; Chrome stays signed in. Not on Sable Onboard or Default Blueprint | `mdm/chrome-trial-sync.mobileconfig` |
-| File on the Mac | `/Library/Application Support/Sable/cli-packages-token`, mode `0600`, one `read:packages` token. `sable-setup` uses it to install `@sable-inc/toolbelt` on every trial slot. Not a repo clone, and not the slot's GitHub login. The same token may instead live in the 1Password item **Sable CLI** (field `token`). Never commit the token | delivered by Iru, not in this repo |
+| Custom Script "Sable: trial packages" | Sable Trial only. GitHub classic token, `read:packages` only. On the Onboarding box the secret is `github-trial-packages-token`. Paste it into `token=` in the Iru item (the copy in git is empty). The script writes only `~/.bunfig.toml` for user `sable`, mode `600`, with `[install.scopes]` and `"@sable-inc" = { url = "https://npm.pkg.github.com", token = "<token>" }`. The Mac never reads the box. Does not write `credentials.json`. Never commit the token | `mdm/iru-trial-packages.sh` |
 | Custom Profile "Sable: Notifications" | not assigned yet. Upload before `git push origin main:fleet`. Slack and Orca notifications on (banners, sounds, badges), no prompt; also on Default Blueprint. Does not require a supervised Mac | `mdm/notifications.mobileconfig` |
 | Custom Script | run once per device; paste the file with `profile` set for the blueprint | `mdm/iru-bootstrap.sh` |
 | Custom Script | run daily; paste the file | `mdm/iru-doctor.sh` |
 | Custom Script | run every check-in; paste the file (same for both blueprints) | `mdm/iru-update.sh` |
 | Custom Script "Sable: Vanta Device Monitor" | run once per device; paste the file with the Vanta key filled in; also on Default Blueprint | `mdm/iru-vanta.sh` |
-| Automated Device Enrollment | Mac: "Skip all screens", auto-advance (needs Ethernet), primary account "Skip", provision local admin `sable` (password in the vault), made the MDM-enabled user | |
+| Automated Device Enrollment | Mac: "Skip all screens", auto-advance (needs Ethernet), primary account "Skip", provision local admin `sable` (password is 1Password item **Trial-pw** in that slot's own vault `Trial – <slot>`; the guest does not see a shared Trial vault; no vault id is stored here), made the MDM-enabled user | |
 
 The bootstrap is one library item per blueprint, because `profile` differs. The other items
 are shared. To make another blueprint like these, duplicate Sable Trial in Iru, then swap its
@@ -157,7 +158,7 @@ These Macs appear in Iru on their own.
    erase it first, from Iru if it's enrolled, otherwise as the preflight says. With Ethernet,
    Setup Assistant needs nothing; on Wi-Fi, pick the language, country and network. A Remote
    Management screen appears and Iru takes over
-3. At the login screen, log in as `sable` (the password is in the vault) and leave it logged
+3. At the login screen, log in as `sable` (1Password item **Trial-pw** in that slot's own vault `Trial – <slot>`) and leave it logged
    in and plugged in. The bootstrap waits for that login before its last step
 
 ### 2. Bought anywhere else (retail, such as Best Buy)

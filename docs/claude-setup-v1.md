@@ -14,7 +14,7 @@ For the office person setting up a Sable trial laptop. Covers:
   person's own hostname (`--hostname sable-<name>`). Then the hire signs in to their apps and
   runs `sable-setup` (section C below). Don't store the FileVault key by hand; Iru escrows it
 
-No secrets go in this file, in Slack, or in the repo. Passwords come from the vault. Time each
+No secrets go in this file, in Slack, or in the repo. Passwords come from that slot's own 1Password vault `Trial – <slot>` (for example `Trial – trial1`). The guest does not see a shared Trial vault, and no vault id is stored here. Time each
 step in the two-Mac checklist.
 
 ## Inputs from the bots
@@ -59,20 +59,39 @@ checks that git, gh, Claude Code, Codex, Cursor and Orca can use `~/deployments`
 (`sable-doctor`, "DS repo works"), that Orca's active workspace (and any Claude tab cwd) is
 that folder, and that `~/.claude/CLAUDE.md` tells Claude to use `/call-feedback-triage` for a
 "Debug session" card. The deployments repo itself is not edited. Every other type, including
-empty, gets none of the Sable repos, no Trials org login, no SableBrowse and no toolbelt
-workflow; a `REPOS` line is ignored, with a warning. An unknown value warns and setup continues.
+empty, gets none of the Sable repos, no Trials org login, no SableBrowse, no toolbelt
+workflow, and no sable CLI; a `REPOS` line is ignored, with a warning. An unknown value
+warns and setup continues. If the CLI is already on a non-DS slot, setup signs it out
+and uninstalls it.
 
-Every slot, including non-DS and idle, still gets the sable CLI. That binary is the
-`@sable-inc/toolbelt` package. Non-DS slots cannot read the toolbelt repo, so `sable-setup`
-does not clone it and does not use the slot's GitHub token. It installs with a separate
-`read:packages` token, fetched at runtime and never stored in this repo:
+Only a DS trial gets the sable CLI. Non-DS slots cannot read the packages, so setup does
+not clone them and, if the CLI is already there, signs it out and uninstalls it. The DS
+install is `bun add -g @sable-inc/toolbelt@^0.80.0 @sable-inc/e2e @sable-inc/wiki`. bun
+must be at least 1.4.4; setup installs or upgrades it when it is older. bun reads the
+registry from `~/.bunfig.toml` (mode `600`), which it prefers over `~/.npmrc`:
 
-1. 1Password item **Sable CLI**, field label `token` (`op item get "Sable CLI" --fields label=token --reveal`)
-2. or the Iru-delivered file `/Library/Application Support/Sable/cli-packages-token` (one line, mode `0600`)
+```toml
+[install.scopes]
+"@sable-inc" = { url = "https://npm.pkg.github.com", token = "<token>" }
+```
 
-`sable-doctor` runs `sable --version` and `sable whoami` on every slot and fails unless
-`user.isSableAdmin` is true. Sign-in is `sable login --no-browser`; this repo cannot grant
-the admin flag. There is no claude.ai Slack connector and no `#bug-reports` access. Call
+The token is a GitHub classic token with only `read:packages`. On the Onboarding box it is
+named `github-trial-packages-token`. Iru writes `~/.bunfig.toml` from `mdm/iru-trial-packages.sh`;
+the Mac never reads the box, and the token is never committed. The slot's `gh auth token` is not used.
+
+Each DS Mac signs in once as that slot's own trial account (`trial@sable.ai` on
+`sable-trial`, `trial1@sable.ai` on `sable-trial1`), not as a separate admin account.
+Those accounts already have the platform admin flag. It is Google OAuth. Setup runs
+`sable login --device` when `sable whoami` is missing or is a different email, and writes
+the device URL and code (no tokens) to `/Library/Logs/sable/sable-login-device.txt` so
+Onboarding can finish it in a browser as that slot's account. Credentials stay in
+`~/.config/sable/credentials.json` (mode `0600`, auto-refresh). The reset keeps that file.
+Never copy it from another machine.
+
+On a DS trial, `sable-doctor` requires `sable --version` and `sable whoami` to report that
+slot's trial email, and fails if the email is anyone else's. On every other trial type it
+fails if the `sable` binary, `~/.config/sable`, or an `@sable-inc` scope in `~/.bunfig.toml`
+is still present. There is no claude.ai Slack connector and no `#bug-reports` access. Call
 notes come from the checkout's `.sable/reviews` and `sable bundle`.
 
 An Eng or FDE trial replaces the `REPOS`, `AGENT_PATH`, `AGENT_ID` and `TRIAL_TYPE` lines with:
@@ -136,17 +155,17 @@ with that privacy permission. Terminal.app has it; Ghostty and Orca don't by def
    ```
 7. In Terminal.app, run `sable-setup`, for every role. It signs in to GitHub as the slot's
    account and downloads this slot's list from `sable-inc/trial-inputs`. Then:
-   - **Every slot, including idle:** it installs `@sable-inc/toolbelt` with the Sable CLI
-     package-read token (1Password item **Sable CLI**, or the Iru file above) and asks for
-     `sable login --no-browser` until `sable whoami` shows a Sable admin. It does not clone
-     toolbelt.
-   - **EL, AE, Marketing, and an idle slot:** no Sable repos. An idle slot signs GitHub out
-     and says to sign in to Chrome, Slack and the other apps with the slot's Google account.
-   - **DS:** Trials org login, SableBrowse, clones the repos (adding `sable-inc/deployments`
-     when `REPOS` omits it), points Orca and new Claude tabs at `~/deployments`, writes the
-     Debug session hint, and checks that git, gh, Claude Code, Codex, Cursor and Orca work there.
-   - **Every other trial type:** no Sable repos, no Trials org login, no SableBrowse and no
-     toolbelt workflow. It still signs in to Claude Code and Codex when those sign-ins are
+   - **DS:** it installs `@sable-inc/toolbelt@^0.80.0`, `@sable-inc/e2e` and `@sable-inc/wiki`
+     with bun, using the `@sable-inc` scope in `~/.bunfig.toml`, and runs `sable login --device`
+     once as this slot's trial account when `sable whoami` is not that email. It does not clone
+     toolbelt. Then Trials org login, SableBrowse, the repos (adding `sable-inc/deployments`
+     when `REPOS` omits it), Orca's clone-from-URL into `~/deployments`, the Debug session
+     hint, and checks that git, gh, Claude Code, Codex, Cursor and Orca work there.
+   - **EL, AE, Marketing, and an idle slot:** no Sable repos and no sable CLI. If the CLI
+     is installed, setup signs it out and removes it. An idle slot signs GitHub out and
+     says to sign in to Chrome, Slack and the other apps with the slot's Google account.
+   - **Every other trial type:** no Sable repos, no Trials org login, no SableBrowse, no
+     toolbelt workflow, and no sable CLI. It still signs in to Claude Code and Codex when those sign-ins are
      missing, and sets up any API keys, Vercel or GCP listed in the file. An unknown
      `TRIAL_TYPE` warns and continues. It ends with `sable-doctor`. Safe to rerun: it skips
      what's already done. Then sign in to the apps as above.

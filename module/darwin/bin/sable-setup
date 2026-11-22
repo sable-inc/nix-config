@@ -78,7 +78,7 @@ for e in rows:
         p = path_of(e)
         if p:
             claude.append(p)
-ok = clone != home and home not in claude and (claude == [clone] or (not claude and ws == clone) or (ws == clone and all(c == clone for c in claude)))
+ok = clone != home and ws == clone and bool(claude) and home not in claude and all(c == clone for c in claude)
 sys.exit(0 if ok else 1)
 PY
   st=$?
@@ -99,8 +99,8 @@ sable_trial_kind() { # sable_trial_kind <trial_type> -> ds | known | empty | unk
     *) printf 'unknown\n' ;;
   esac
 }
-# Employees keep today's Sable stack. A trial gets repos, SableBrowse and the Trials org
-# only for an exact TRIAL_TYPE=ds. The sable CLI is separate: every trial slot installs it.
+# Employees keep today's Sable stack. A trial gets repos, SableBrowse, the Trials org,
+# and the sable CLI only for an exact TRIAL_TYPE=ds. Every other type has the CLI removed.
 sable_stack() { # sable_stack <profile> <trial_type>; true when this Mac gets Sable repos and tools
   [ "$1" != trial ] || [ "$2" = ds ]
 }
@@ -125,73 +125,129 @@ u=d.get("user") if isinstance(d, dict) else None
 raise SystemExit(0 if isinstance(u, dict) and u.get("isSableAdmin") is True else 1)'
 }
 # END sable_admin_check
-# Package-read credential for @sable-inc/toolbelt. Independent of the slot's GitHub login.
-# Never printed, never committed. See docs/claude-setup-v1.md.
-# 1. 1Password item "Sable CLI", field label "token" (read:packages only).
-# 2. Iru-delivered file, one line, mode 0600:
-#    /Library/Application Support/Sable/cli-packages-token
-SABLE_CLI_TOKEN_FILE="/Library/Application Support/Sable/cli-packages-token"
-sable_packages_token() { # prints the token, or fails with no output
-  local token="" opbin=""
-  if [ -f "$SABLE_CLI_TOKEN_FILE" ]; then
-    token=$(tr -d '[:space:]' < "$SABLE_CLI_TOKEN_FILE")
-  fi
-  if [ -z "$token" ]; then
-    if command -v op >/dev/null 2>&1; then opbin=op
-    elif [ -x /Applications/1Password.app/Contents/MacOS/op ]; then
-      opbin=/Applications/1Password.app/Contents/MacOS/op
-    fi
-    if [ -n "$opbin" ]; then
-      token=$("$opbin" item get "Sable CLI" --fields label=token --reveal 2>/dev/null || true)
-      token=$(printf '%s' "$token" | tr -d '[:space:]')
-    fi
-  fi
-  case "$token" in
-    ""|op://*|*TODO*|*CHANGEME*|*YOUR_TOKEN*) return 1 ;;
+# DS package install. The read:packages token is a GitHub classic token. On the Onboarding
+# box it is named github-trial-packages-token. Iru pushes it (mdm/iru-trial-packages.sh);
+# this Mac never reads the box, and the token is never committed. bun reads it from
+# ~/.bunfig.toml (mode 600), not from ~/.npmrc.
+slot_email() { # sable-trial -> trial@sable.ai, sable-trial1 -> trial1@sable.ai
+  local host slot
+  host=$(scutil --get LocalHostName 2>/dev/null || true)
+  case "$host" in
+    sable-trial*) slot=${host#sable-} ;;
+    *) return 1 ;;
   esac
-  printf '%s' "$token"
+  printf '%s@sable.ai\n' "$slot"
 }
-with_sable_packages_token() { # with_sable_packages_token <cmd...>; NPM_TOKEN is the package-read token for that command only
-  local token cfg st
-  token=$(sable_packages_token) || return 1
-  cfg=$(mktemp)
-  chmod 600 "$cfg"
-  # shellcheck disable=SC2016
-  printf '%s\n' '@sable-inc:registry=https://npm.pkg.github.com' '//npm.pkg.github.com/:_authToken=${NPM_TOKEN}' >"$cfg"
-  set +e
-  NPM_TOKEN="$token" NPM_CONFIG_USERCONFIG="$cfg" "$@"
-  st=$?
-  set -e
-  rm -f "$cfg"
-  return "$st"
+sable_whoami_is_slot() { # true when whoami user.email is this slot's trial account. Prints nothing.
+  local email
+  email=$(slot_email) || return 1
+  sable --json whoami 2>/dev/null | python3 -I -c 'import json,sys
+try:
+    d=json.load(sys.stdin)
+except Exception:
+    raise SystemExit(1)
+u=d.get("user") if isinstance(d, dict) else None
+got=u.get("email") if isinstance(u, dict) else None
+raise SystemExit(0 if got==sys.argv[1] else 1)' "$email"
+}
+bun_at_least() { # bun_at_least <version>; true when bun on PATH is at least that
+  command -v bun >/dev/null 2>&1 || return 1
+  bun --version | python3 -I -c 'import sys
+want=tuple(int(x) for x in sys.argv[1].split("."))
+got=tuple(int(x) for x in sys.stdin.read().strip().split(".")[:len(want)])
+raise SystemExit(0 if got>=want else 1)' "$1"
+}
+ensure_bun() {
+  export PATH="$HOME/.bun/bin:$PATH"
+  if bun_at_least 1.4.4; then return 0; fi
+  echo "installing bun >= 1.4.4 (needed for install.scopes in ~/.bunfig.toml)" >&2
+  curl -fsSL https://bun.sh/install | bash
+  export PATH="$HOME/.bun/bin:$PATH"
+  bun_at_least 1.4.4
+}
+bunfig_ready() { # true when ~/.bunfig.toml has an @sable-inc scope and a real token. Prints nothing.
+  [ -f "$HOME/.bunfig.toml" ] || return 1
+  python3 -I - "$HOME/.bunfig.toml" <<'PY'
+import re, sys
+text = open(sys.argv[1]).read()
+if "[install.scopes]" not in text or "@sable-inc" not in text or "npm.pkg.github.com" not in text:
+    raise SystemExit(1)
+m = re.search(r'token\s*=\s*"([^"]*)"', text)
+bad = ("", "<token>", "TODO", "CHANGEME")
+raise SystemExit(0 if m and m.group(1) not in bad else 1)
+PY
 }
 install_sable_cli() {
-  if have sable; then return 0; fi
-  # bun add installs the package. It does not clone sable-inc/toolbelt and does not
-  # use the slot's GitHub token (non-DS slots cannot read that repo).
-  if with_sable_packages_token bun add -g @sable-inc/toolbelt; then return 0; fi
-  echo "warning: could not install @sable-inc/toolbelt. Need the Sable CLI package-read token (1Password item \"Sable CLI\", field token, or $SABLE_CLI_TOKEN_FILE). The slot's GitHub login is not used, and toolbelt is not cloned." >&2
+  # bun add installs the packages. It does not clone any Sable repo and does not
+  # use the slot's GitHub token.
+  if ! ensure_bun; then
+    echo "warning: bun is older than 1.4.4 and could not be upgraded" >&2
+    return 0
+  fi
+  if ! bunfig_ready; then
+    echo "warning: ~/.bunfig.toml has no @sable-inc token. Onboarding's Iru script (mdm/iru-trial-packages.sh) writes it from github-trial-packages-token. This repo does not contain the token." >&2
+    return 0
+  fi
+  chmod 600 "$HOME/.bunfig.toml"
+  if bun add -g @sable-inc/toolbelt@^0.80.0 @sable-inc/e2e @sable-inc/wiki; then return 0; fi
+  echo "warning: could not install @sable-inc/toolbelt, @sable-inc/e2e and @sable-inc/wiki" >&2
   return 0
 }
-sable_admin_signin() {
-  # Browser sign-in only. isSableAdmin is a flag on the account; this command cannot grant it,
-  # and no token is written into the repo. No Slack connector and no #bug-reports access.
-  # Call notes stay in the checkout's .sable/reviews and `sable bundle`.
-  if ! have sable; then
-    echo "warning: sable CLI is not installed, so it is not signed in as a Sable admin" >&2
+remove_sable_cli() { # non-DS slots build the platform themselves: no binary, no sign-in, no bun scope
+  if have sable; then sable logout >/dev/null 2>&1 || true; fi
+  if have bun; then bun remove -g @sable-inc/toolbelt @sable-inc/e2e @sable-inc/wiki >/dev/null 2>&1 || true; fi
+  if have sable; then rm -f "$(command -v sable)"; fi
+  rm -rf "${XDG_CONFIG_HOME:-$HOME/.config}/sable"
+  if [ -f "$HOME/.bunfig.toml" ] && grep -q '@sable-inc' "$HOME/.bunfig.toml"; then
+    rm -f "$HOME/.bunfig.toml"
+  fi
+  if have sable; then
+    echo "warning: sable is still on PATH after uninstall; sable-doctor will fail this slot" >&2
+  fi
+}
+sable_login_device() {
+  # One sign-in, as this slot's own trial account (trial@sable.ai, trial1@sable.ai, …).
+  # Those accounts already have the platform admin flag. Google OAuth, headless:
+  # sable login --device. Never copy ~/.config/sable/credentials.json from another machine.
+  local email log tmp pid
+  email=$(slot_email) || { echo "warning: this Mac's name is not sable-trial*, so the slot account is unknown" >&2; return 0; }
+  if sable_whoami_is_slot; then
+    echo "sable CLI: signed in as ${email}"
+    chmod 600 "$HOME/.config/sable/credentials.json" 2>/dev/null || true
     return 0
   fi
-  if sable --json whoami 2>/dev/null | sable_is_admin; then
-    echo "sable CLI: signed in as a Sable admin"
-    return 0
-  fi
-  you "Open the link below and sign in as a Sable admin account (sable whoami must show user.isSableAdmin)."
-  you "nix-config cannot grant that flag. If this account is not an admin, ask an engineer. No Slack connector is added."
-  sable login --no-browser || echo "warning: sable login did not finish; sable-doctor will say what is missing" >&2
-  if sable --json whoami 2>/dev/null | sable_is_admin; then
-    echo "sable CLI: signed in as a Sable admin"
-  else
-    echo "warning: sable whoami does not show user.isSableAdmin true. Doctor will fail this until the signed-in account is a Sable admin." >&2
+  log=/Library/Logs/sable/sable-login-device.txt
+  sudo mkdir -p /Library/Logs/sable
+  sudo touch "$log"
+  sudo chown "$(id -un)" "$log"
+  sudo chmod 644 "$log"
+  tmp=$(mktemp)
+  : >"$log"
+  sable login --device >"$tmp" 2>&1 &
+  pid=$!
+  # The URL and code are printed before the command waits. Tokens are not.
+  for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+    python3 -I -c 'import re,sys
+text=open(sys.argv[1], errors="replace").read()
+lines=[]
+for line in text.splitlines():
+    if re.search(r"ghp_|github_pat_|accessToken|refreshToken|eyJ", line):
+        continue
+    if "http://" in line or "https://" in line or "code" in line.lower():
+        lines.append(line)
+open(sys.argv[2],"w").write("\n".join(lines)+("\n" if lines else ""))' "$tmp" "$log" || true
+    grep -q 'https://' "$log" 2>/dev/null && break
+    kill -0 "$pid" 2>/dev/null || break
+    sleep 1
+  done
+  echo "sable login --device is waiting. Onboarding opens the URL in /Library/Logs/sable/sable-login-device.txt as ${email}."
+  set +e
+  wait "$pid"
+  set -e
+  rm -f "$tmp"
+  if [ -f "$HOME/.config/sable/credentials.json" ]; then chmod 600 "$HOME/.config/sable/credentials.json"; fi
+  if sable_whoami_is_slot; then echo "sable CLI: signed in as ${email}"
+  else echo "warning: sable whoami is not ${email}. sable-doctor will fail until Onboarding finishes the device login as that account." >&2
   fi
 }
 
@@ -242,7 +298,7 @@ if [ "$profile" = trial ]; then
   kind=$(sable_trial_kind "$trial_type")
   case "$kind" in
     unknown)
-      echo "warning: TRIAL_TYPE='$trial_type' is not a known trial type (ds, eng, fde, design, ae, el, marketing, or empty). No Sable repos, Trials org login, SableBrowse, or toolbelt workflow; the sable CLI is still installed. Setup continues." >&2
+      echo "warning: TRIAL_TYPE='$trial_type' is not a known trial type (ds, eng, fde, design, ae, el, marketing, or empty). No Sable repos, Trials org login, SableBrowse, toolbelt workflow, or sable CLI. Setup continues." >&2
       ;;
   esac
   if [ "$kind" != ds ]; then
@@ -258,9 +314,13 @@ if [ "$profile" = trial ]; then
   [ "$(input TRIAL_SLOT)" = "$slot" ] || die "this Mac is $host, but $inputs is for sable-$(input TRIAL_SLOT)"
   if [ -z "$github_user" ]; then
     if [ -n "$repos$agent_path$api_keys$vercel$gcp" ]; then die "TRIAL_GITHUB_USER is empty but other access is listed"; fi
-    # An idle slot still gets the sable CLI, from the package-read token, not this Mac's GitHub login.
-    install_sable_cli
-    sable_admin_signin
+    # Idle means no GitHub user. The CLI is still DS-only; any other type loses it.
+    if [ "$trial_type" = ds ]; then
+      install_sable_cli
+      sable_login_device
+    else
+      remove_sable_cli
+    fi
     gh auth logout --hostname github.com >/dev/null 2>&1 || true
     say "No technical access listed: nothing else to set up (signed GitHub out again)"
     you "Sign in to Chrome, Slack, Zoom and the other apps with $email (Google sign-in)."
@@ -291,18 +351,25 @@ NPM_TOKEN="$(gh auth token)"
 export NPM_TOKEN
 
 say "Sable packages"
-npm config set @sable-inc:registry https://npm.pkg.github.com
-# shellcheck disable=SC2016 # npm expands ${NPM_TOKEN} itself, so the token never lands in ~/.npmrc
-npm config set '//npm.pkg.github.com/:_authToken' '${NPM_TOKEN}'
-# Every trial slot, including idle (handled above), non-DS, and unknown. Employees install inside sable_stack.
-# The CLI install above uses the package-read token, not NPM_TOKEN from the slot's gh auth token.
+# DS package installs use ~/.bunfig.toml (the Iru read:packages token). Do not also point
+# ~/.npmrc at this slot's gh token, or bun/npm can pick up the wrong credential.
+if [ "$profile" != trial ] || [ "$trial_type" != ds ]; then
+  npm config set @sable-inc:registry https://npm.pkg.github.com
+  # shellcheck disable=SC2016 # npm expands ${NPM_TOKEN} itself, so the token never lands in ~/.npmrc
+  npm config set '//npm.pkg.github.com/:_authToken' '${NPM_TOKEN}'
+fi
+# DS trials only. Engineering and every other type, including idle and unknown, get no CLI.
+# The install uses the package-read token, not NPM_TOKEN from the slot's gh auth token.
+# Employees install inside sable_stack.
 if [ "$profile" = trial ]; then
-  say "Sable CLI (every trial slot)"
-  install_sable_cli
-  if have sable; then
-    with_sable_packages_token sable update >/dev/null 2>&1 || echo "warning: sable update failed; continuing" >&2
+  if [ "$trial_type" = ds ]; then
+    say "Sable CLI (DS)"
+    install_sable_cli
+    sable_login_device
+  else
+    say "Sable CLI (not on this slot)"
+    remove_sable_cli
   fi
-  sable_admin_signin
 fi
 # Non-DS trials stop here for Sable repos: no toolbelt workflow, no Trials org login, no SableBrowse, no clones.
 # Employee Macs keep the old install, which stops setup if it fails.
@@ -317,8 +384,12 @@ if sable_stack "$profile" "$trial_type"; then
   else
     say "Sable platform ($org org)"
     if ! sable --json whoami >/dev/null 2>&1; then
-      you "Open the link below and sign in${email:+ as $email}."
-      sable login --no-browser
+      if [ "$trial_type" = ds ]; then
+        echo "warning: sable is not signed in as this slot. Finish sable login --device from /Library/Logs/sable/sable-login-device.txt." >&2
+      else
+        you "Open the link below and sign in${email:+ as $email}."
+        sable login --no-browser
+      fi
     fi
     org_id=$(sable --json switch --list | python3 -I -c 'import json,sys; d=json.load(sys.stdin); d=d if isinstance(d,list) else d.get("orgs",d.get("items",[])); m=[o["publicId"] for o in d if o.get("name")==sys.argv[1]]; print(m[0] if len(m)==1 else "")' "$org")
     [ -n "$org_id" ] || die "this account can't see the $org org; an engineer must invite ${email:-it} to $org"
@@ -456,7 +527,29 @@ PY
   while read -r act ident; do
     case "$act" in
       delete) "$orca_cli" project setup-delete --setup "$ident" --host local --force --json >/dev/null || echo "warning: could not remove Orca project $ident" >&2 ;;
-      add) "$orca_cli" project setup-existing-folder --project github:sable-inc/deployments --host local --path "$d" --kind git --json >/dev/null ;;
+      add)
+        # Clone from URL (orca project setup-clone). Parent is $HOME and the folder is
+        # deployments, so the project lands in ~/deployments and never in $HOME.
+        # Git refuses a non-empty destination, so the checkout gh just made is moved
+        # aside and its commit is restored onto Orca's clone. There is no other registration path.
+        [ "$d" != "$HOME" ] || die "refusing to clone Orca into the home directory"
+        aside=$(mktemp -d)
+        [ -e "$d" ] && mv "$d" "$aside/deployments"
+        if "$orca_cli" project setup-clone --project github:sable-inc/deployments --host local \
+            --url https://github.com/sable-inc/deployments --destination "$HOME" --folder-name deployments --json >/dev/null \
+          && [ "$d" != "$HOME" ] && [ -d "$d/.git" ]; then
+          if [ -d "$aside/deployments/.git" ]; then
+            git -C "$d" fetch "$aside/deployments" HEAD && git -C "$d" checkout FETCH_HEAD \
+              || echo "warning: Orca cloned deployments, but the previous commit could not be restored" >&2
+          fi
+          rm -rf "$aside"
+        else
+          rm -rf "$d"
+          [ -d "$aside/deployments" ] && mv "$aside/deployments" "$d"
+          rm -rf "$aside"
+          die "Orca clone-from-URL failed (project setup-clone). Not using another registration command."
+        fi
+        ;;
     esac
   done <<<"$orca_actions"
   # New Claude tabs follow the active workspace. That workspace is the clone, never $HOME.
