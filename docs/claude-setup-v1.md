@@ -3,8 +3,9 @@
 For the office person setting up a Sable trial laptop. Covers:
 
 - **A. New trial laptop:** a brand-new Mac joins the trial pool
-- **B. Reset:** an existing trial laptop gets the next candidate. Erase it first (below), then
-  follow A
+- **B. Cleanup:** an existing trial laptop gets the next candidate after the light cleanup at
+  midnight PT on the last day (`docs/new-mac-runbook.md`, Part H). Only if Matthew OKs a full
+  erase of that exact Mac: erase it (below), then follow A
 - **C. New-hire Mac:** Iru does steps 2-6 on the **Sable Onboard** blueprint
   (`docs/iru.md`, "ADE preflight (required before anyone continues Setup Assistant)").
   Do that before anyone continues Setup Assistant. Without Iru, follow hand steps 1-6
