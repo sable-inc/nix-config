@@ -21,7 +21,7 @@ assert len(p) == 1
 e = {s["BundleIdentifier"]: s for s in p[0]["NotificationSettings"]}
 for b in ("com.tinyspeck.slackmacgap", "com.stablyai.orca"):
     assert e[b]["NotificationsEnabled"] is True and e[b]["AlertType"] in (1, 2)'
-need "Claude managed settings pin pstack and codex marketplaces and turn autoUpdate off" py '
+need "Claude managed settings pin the plugin marketplaces (plugin autoUpdate off keeps the SHA pins) and never disable Claude Code self-update" py '
 import json, re
 d = json.load(open("module/darwin/config/claude-managed-settings.json"))
 m = d["extraKnownMarketplaces"]
@@ -34,7 +34,8 @@ for name, repo, ref in (
     assert src == {"source": "github", "repo": repo, "ref": ref}
     assert sha.match(src["ref"])
     assert m[name]["autoUpdate"] is False
-assert d["enabledPlugins"] == {"pstack@cursor-plugins": True, "codex@openai-codex": True}'
+assert d["enabledPlugins"] == {"pstack@cursor-plugins": True, "codex@openai-codex": True}
+assert set(d) == {"extraKnownMarketplaces", "enabledPlugins"}, "managed settings may only pin plugins: no env/autoUpdatesChannel/DISABLE_*"'
 need "agents.nix is imported and installs managed settings + /etc/codex/skills" sh -c '
 grep -q "./agents.nix" module/darwin/default.nix &&
 grep -q "ClaudeCode/managed-settings.json" module/darwin/agents.nix &&
@@ -46,14 +47,57 @@ grep -q "claude.ai/install.sh" module/darwin/bin/sable-setup &&
 grep -q "chatgpt.com/codex/install.sh" module/darwin/bin/sable-setup &&
 grep -q "\.local/bin" module/darwin/home-manager.nix &&
 ! grep -rq "DISABLE_AUTOUPDATER" module'
-need "pnpm and bun are user-owned installs (not nix) with doctor checks, so they can self-update" sh -c '
-grep -q "pnpm-darwin-arm64" module/darwin/bin/sable-setup && grep -q "bun-darwin-aarch64" module/darwin/bin/sable-setup &&
-grep -q "\"pnpm\"" module/darwin/packages.nix && grep -q "\"bun\"" module/darwin/packages.nix &&
-grep -q "claude codex pnpm bun" module/darwin/bin/sable-doctor && grep -q ".bun/bin" module/darwin/home-manager.nix'
+need "sable-doctor fails a claude/codex/pnpm/bun that is a symlink into the nix store, passes a user-owned one" bash -c '
+set -e
+t=$(mktemp -d); trap "rm -rf $t" EXIT
+sed -n "/# >>> resolve-path/,/# <<< resolve-path/p" module/darwin/bin/sable-doctor >"$t/fn.sh"
+. "$t/fn.sh"
+export NIX_STORE_PREFIX="$t/nix/store"
+mkdir -p "$t/nix/store/abc-claude/bin" "$t/home/.local/bin" "$t/home/.local/share/real"
+: >"$t/nix/store/abc-claude/bin/claude"; : >"$t/home/.local/share/real/pnpm"
+ln -s "$t/nix/store/abc-claude/bin/claude" "$t/home/.local/bin/claude"          # user dir, nix target
+ln -s ../share/real/pnpm "$t/home/.local/bin/pnpm"                              # relative, user target
+ln -s "$t/home/.local/bin/claude" "$t/home/.local/bin/claude2"                  # chain
+in_nix_store "$t/home/.local/bin/claude"
+in_nix_store "$t/home/.local/bin/claude2"
+! in_nix_store "$t/home/.local/bin/pnpm"
+grep -q "in_nix_store \"\$p\"" module/darwin/bin/sable-doctor'
+need "release installers: arch map, sha256 verified, bad checksum keeps the old install" bash -c '
+set -e
+t=$(mktemp -d); trap "rm -rf $t" EXIT
+sed -n "/# >>> release-installers/,/# <<< release-installers/p" module/darwin/bin/sable-setup >"$t/fn.sh"
+grep -q "pnpm-darwin-\$arch" "$t/fn.sh" && grep -q "bun-darwin-\$arch" "$t/fn.sh"
+mkdir -p "$t/bin" "$t/srv"; printf "payload" >"$t/srv/a.zip"
+good=$(sha256sum "$t/srv/a.zip" | cut -d" " -f1)
+mk() { printf "{\"assets\":[{\"name\":\"a.zip\",\"browser_download_url\":\"https://x/a.zip\",\"digest\":\"sha256:%s\"}]}" "$1" >"$t/srv/meta.json"; }
+printf "#!/bin/sh\nfor a; do u=\$a; done\ncase \"\$*\" in *api.github.com*) cat %s/srv/meta.json;; *) o=\"\"; while [ \$# -gt 0 ]; do [ \"\$1\" = -o ] && o=\$2; shift; done; cp %s/srv/a.zip \"\$o\";; esac\n" "$t" "$t" >"$t/bin/curl"
+printf "#!/bin/sh\nsha256sum \"\$@\" | sed \"s/^\\([0-9a-f]*\\)  /\\1  /\"\n" >"$t/bin/shasum"
+chmod +x "$t/bin/curl" "$t/bin/shasum"; export PATH="$t/bin:$PATH"
+. "$t/fn.sh"
+mk "$good"; fetch_release_asset o/r a.zip "$t/ok.zip" && cmp -s "$t/ok.zip" "$t/srv/a.zip"
+mk 0000000000000000000000000000000000000000000000000000000000000000
+! fetch_release_asset o/r a.zip "$t/bad.zip" 2>/dev/null
+mk ""; ! fetch_release_asset o/r a.zip "$t/none.zip" 2>/dev/null
+# a failed fetch must leave an existing pnpm install in place
+export HOME="$t/home"; mkdir -p "$HOME/.local/share/pnpm-cli"; echo old >"$HOME/.local/share/pnpm-cli/pnpm"
+mac_arch() { echo arm64; }; mk 0000000000000000000000000000000000000000000000000000000000000000
+! install_pnpm 2>/dev/null
+[ "$(cat "$HOME/.local/share/pnpm-cli/pnpm")" = old ]
+mac_arch() { return 1; }; ! install_bun 2>/dev/null'
+need "zsh loads ~/.config/sable/env only if owned by the user and not group/other writable" bash -c '
+set -e
+t=$(mktemp -d); trap "rm -rf $t" EXIT
+mkdir -p "$t/.config/sable"; f="$t/.config/sable/env"; echo "export SABLE_T=loaded" >"$f"
+run() { HOME=$t bash -c ". module/shared/config/sable-env.sh; echo \${SABLE_T:-no}" 2>/dev/null; }
+chmod 600 "$f"; [ "$(run)" = loaded ]
+chmod 644 "$f"; [ "$(run)" = loaded ]
+chmod 664 "$f"; [ "$(run)" = no ]
+chmod 646 "$f"; [ "$(run)" = no ]
+chmod 600 "$f"; sudo -n chown root "$f" 2>/dev/null && { [ "$(run)" = no ]; sudo -n chown "$(id -u)" "$f"; } || true
+grep -q "sable-env.sh" module/shared/home-manager.nix'
 need "Cursor is a Homebrew cask, not a nix package, and the doctor checks it" sh -c '
 grep -q "\"cursor\"" module/darwin/default.nix && grep -q "\"cursor\"" module/darwin/packages.nix &&
 grep -q "/Applications/Cursor.app" module/darwin/bin/sable-doctor'
-need "zsh loads ~/.config/sable/env (per-slot API keys) from .zshenv" grep -q "config/sable/env" module/shared/home-manager.nix
 need "Orca is installed by activation" grep -q "TeamIdentifier=6CX3WHS9HZ" module/darwin/orca.nix
 need "sable-setup: agent sign-ins, Orca repair, DS-only stack, deployments default, CLI from a package-read token" sh -c '
 f=module/darwin/bin/sable-setup

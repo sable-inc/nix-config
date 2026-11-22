@@ -378,29 +378,64 @@ agent_cli claude https://claude.ai/install.sh bash
 agent_cli codex https://chatgpt.com/codex/install.sh sh
 
 # pnpm and bun: their own release builds, user-owned, so `pnpm self-update` and `bun upgrade` can
-# write them (a nix store copy is read-only and lags). Always the latest release.
+# write them (a nix store copy is read-only and lags). Always the latest release, verified against the
+# sha256 digest GitHub publishes for the release asset, staged, then swapped in; any failure keeps the old install.
+# >>> release-installers
+mac_arch() { # arm64 | x64 (Rosetta shells report x86_64, so ask the hardware)
+  if [ "$(/usr/sbin/sysctl -n hw.optional.arm64 2>/dev/null || echo 0)" = 1 ]; then echo arm64; return; fi
+  case "$(uname -m)" in arm64) echo arm64 ;; x86_64) echo x64 ;; *) return 1 ;; esac
+}
+# fetch_release_asset <owner/repo> <asset name> <dest file>: latest release, sha256 checked
+fetch_release_asset() {
+  local repo=$1 asset=$2 dest=$3 meta url want got
+  meta=$(curl --proto '=https' --tlsv1.2 -fsSL "https://api.github.com/repos/$repo/releases/latest") || return 1
+  url=$(printf '%s' "$meta" | python3 -I -c 'import json,sys
+for a in json.load(sys.stdin).get("assets", []):
+    if a["name"] == sys.argv[1]: print(a["browser_download_url"]); break' "$asset") || return 1
+  want=$(printf '%s' "$meta" | python3 -I -c 'import json,sys
+for a in json.load(sys.stdin).get("assets", []):
+    if a["name"] == sys.argv[1]: print((a.get("digest") or "").removeprefix("sha256:")); break' "$asset") || return 1
+  [ -n "$url" ] && [ "${#want}" = 64 ] || { echo "no published sha256 for $asset" >&2; return 1; }
+  curl --proto '=https' --tlsv1.2 -fsSL -o "$dest" "$url" || return 1
+  got=$(shasum -a 256 "$dest" | cut -d' ' -f1)
+  [ "$got" = "$want" ] || { echo "sha256 mismatch for $asset" >&2; return 1; }
+}
+# install_pnpm / install_bun: stage, check it runs, swap in atomically; the old install stays on failure.
+install_pnpm() {
+  local arch dir=$HOME/.local/share/pnpm-cli tmp rc=1
+  arch=$(mac_arch) || { echo "unsupported CPU $(uname -m): can't install pnpm" >&2; return 1; }
+  mkdir -p "$HOME/.local/bin" "$HOME/.local/share"
+  tmp=$(mktemp -d "$HOME/.local/share/.pnpm-stage.XXXXXX") || return 1
+  if fetch_release_asset pnpm/pnpm "pnpm-darwin-$arch.tar.gz" "$tmp/pnpm.tgz" \
+    && mkdir "$tmp/new" && tar -xzf "$tmp/pnpm.tgz" -C "$tmp/new" && "$tmp/new/pnpm" --version >/dev/null 2>&1; then
+    [ ! -e "$dir" ] || mv "$dir" "$tmp/old"
+    if mv "$tmp/new" "$dir"; then ln -sfn "$dir/pnpm" "$HOME/.local/bin/pnpm"; rc=0
+    elif [ -e "$tmp/old" ]; then mv "$tmp/old" "$dir"; fi
+  fi
+  rm -rf "$tmp"; return $rc
+}
+install_bun() {
+  local arch dir=$HOME/.bun/bin tmp rc=1
+  arch=$(mac_arch) || { echo "unsupported CPU $(uname -m): can't install bun" >&2; return 1; }
+  [ "$arch" = arm64 ] && arch=aarch64
+  mkdir -p "$dir"
+  tmp=$(mktemp -d "$dir/.bun-stage.XXXXXX") || return 1
+  if fetch_release_asset oven-sh/bun "bun-darwin-$arch.zip" "$tmp/bun.zip" \
+    && /usr/bin/unzip -q -o "$tmp/bun.zip" -d "$tmp" && "$tmp/bun-darwin-$arch/bun" --version >/dev/null 2>&1 \
+    && install -m 0755 "$tmp/bun-darwin-$arch/bun" "$dir/.bun.new" && mv -f "$dir/.bun.new" "$dir/bun"; then rc=0; fi
+  rm -rf "$tmp" "$dir/.bun.new"; return $rc
+}
+# <<< release-installers
 say "pnpm and bun"
 own_dir() { case "$(command -v "$1" 2>/dev/null || true)" in "$HOME"/.local/*|"$HOME"/.bun/*) return 0 ;; *) return 1 ;; esac; }
 if ! own_dir pnpm; then
   echo "installing pnpm from its release build..."
-  mkdir -p "$HOME/.local/share/pnpm-cli" "$HOME/.local/bin"
-  pnpm_tmp=$(mktemp -d)
-  if /usr/bin/curl --proto '=https' --tlsv1.2 -fsSL -o "$pnpm_tmp/pnpm.tgz" https://github.com/pnpm/pnpm/releases/latest/download/pnpm-darwin-arm64.tar.gz \
-    && rm -rf "$HOME/.local/share/pnpm-cli" && mkdir -p "$HOME/.local/share/pnpm-cli" \
-    && tar -xzf "$pnpm_tmp/pnpm.tgz" -C "$HOME/.local/share/pnpm-cli"; then
-    ln -sfn "$HOME/.local/share/pnpm-cli/pnpm" "$HOME/.local/bin/pnpm"
-  else you "couldn't install pnpm; rerun sable-setup"; fi
-  rm -rf "$pnpm_tmp"
+  install_pnpm || you "couldn't install pnpm; rerun sable-setup"
 fi
 echo "pnpm: $(pnpm --version 2>/dev/null | head -1) (updates itself: pnpm self-update)"
 if ! own_dir bun; then
   echo "installing bun from its release build..."
-  bun_tmp=$(mktemp -d)
-  if /usr/bin/curl --proto '=https' --tlsv1.2 -fsSL -o "$bun_tmp/bun.zip" https://github.com/oven-sh/bun/releases/latest/download/bun-darwin-aarch64.zip \
-    && /usr/bin/unzip -q -o "$bun_tmp/bun.zip" -d "$bun_tmp"; then
-    mkdir -p "$HOME/.bun/bin" && install -m 0755 "$bun_tmp/bun-darwin-aarch64/bun" "$HOME/.bun/bin/bun"
-  else you "couldn't install bun; rerun sable-setup"; fi
-  rm -rf "$bun_tmp"
+  install_bun || you "couldn't install bun; rerun sable-setup"
 fi
 export PATH="$HOME/.bun/bin:$PATH"
 echo "bun: $(bun --version 2>/dev/null | head -1) (updates itself: bun upgrade)"
