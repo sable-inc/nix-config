@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Iru Custom Profile "Sable: Chrome sync off", Sable Trial only.
+     Trial Macs stay signed in to Chrome across a reset. SyncDisabled stops a trialer's
+     history and bookmarks from coming back. Do not assign this to Sable Onboard or
+     Default Blueprint: employee Macs keep Chrome sync. -->
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>SyncDisabled</key>
+      <true/>
+      <key>PayloadDisplayName</key>
+      <string>Google Chrome: sync off</string>
+      <key>PayloadIdentifier</key>
+      <string>com.sable.chrome.trial.sync.payload</string>
+      <key>PayloadType</key>
+      <string>com.google.Chrome</string>
+      <key>PayloadUUID</key>
+      <string>DF89EAFE-5083-40D4-8778-4898E69BBE6B</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+  </array>
+  <key>PayloadDisplayName</key>
+  <string>Sable: Chrome sync off (trial)</string>
+  <key>PayloadIdentifier</key>
+  <string>com.sable.chrome.trial.sync</string>
+  <key>PayloadScope</key>
+  <string>System</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>42894EC0-94CC-49A3-9B61-64C5C7D120EF</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>

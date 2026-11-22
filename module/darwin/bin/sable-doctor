@@ -1,5 +1,5 @@
 # sable-doctor: PASS/FAIL for every piece a Sable trial or onboard laptop needs.
-# shellcheck disable=SC2088 # "~/..." strings are messages, not paths
+# shellcheck disable=SC2088,SC2317 # "~/..." strings are messages, not paths; orca helpers are passed to check()
 # Usage: sable-doctor [--trial-dir ~/deployments/trials/<agent>-<first>]
 # On a trial Mac it checks the access listed in ~/trial-inputs.env (see sable-setup).
 # Exit code = number of FAILs. Never prints secret values.
@@ -11,6 +11,92 @@ have() { command -v "$1" >/dev/null 2>&1; }
 check() { # check <label> <fix> <command...>
   label=$1; fix=$2; shift 2
   if "$@" >/dev/null 2>&1; then ok "$label"; else bad "$label" "$fix"; fi
+}
+orca_project_ok() { # orca_project_ok <clone path>: one deployments project, and nothing registered at $HOME
+  clone=$1
+  cli=/Applications/Orca.app/Contents/Resources/bin/orca
+  s=$(mktemp); r=$(mktemp)
+  "$cli" project setups --project github:sable-inc/deployments --host local --json >"$s" || { rm -f "$s" "$r"; return 1; }
+  "$cli" repo list --json >"$r" || { rm -f "$s" "$r"; return 1; }
+  python3 -I - "$clone" "$s" "$r" <<'PY'
+import json, os, sys
+clone = os.path.normpath(os.path.expanduser(sys.argv[1])).rstrip("/")
+home = os.path.normpath(os.path.expanduser("~")).rstrip("/")
+def rows(doc):
+    if isinstance(doc, dict):
+        for key in ("setups", "projects", "repos", "items"):
+            if isinstance(doc.get(key), list): return doc[key]
+        if isinstance(doc.get("result"), (dict, list)): return rows(doc["result"])
+    return doc if isinstance(doc, list) else []
+def entry_path(e):
+    for k in ("path", "checkoutPath", "gitRoot", "root"):
+        if isinstance(e, dict) and e.get(k):
+            return os.path.normpath(os.path.expanduser(e[k])).rstrip("/")
+    return ""
+setups = [entry_path(e) for e in rows(json.load(open(sys.argv[2]))) if entry_path(e)]
+repos = [entry_path(e) for e in rows(json.load(open(sys.argv[3]))) if entry_path(e)]
+sys.exit(0 if setups == [clone] and home not in repos and clone != home else 1)
+PY
+  st=$?
+  rm -f "$s" "$r"
+  return "$st"
+}
+sable_is_admin() { # true when whoami JSON on stdin has user.isSableAdmin true. Prints nothing.
+  python3 -I -c 'import json,sys
+try:
+    d=json.load(sys.stdin)
+except Exception:
+    raise SystemExit(1)
+u=d.get("user") if isinstance(d, dict) else None
+raise SystemExit(0 if isinstance(u, dict) and u.get("isSableAdmin") is True else 1)'
+}
+orca_workspace_ok() { # orca_workspace_ok <clone>: active workspace is the clone, and any Claude tab cwd is too
+  clone=$1
+  cli=/Applications/Orca.app/Contents/Resources/bin/orca
+  show=$(mktemp)
+  "$cli" worktree show --worktree active --json >"$show" 2>/dev/null || { rm -f "$show"; return 1; }
+  python3 -I - "$clone" "$show" <<'PY'
+import json, os, sys
+clone = os.path.normpath(os.path.expanduser(sys.argv[1])).rstrip("/")
+home = os.path.normpath(os.path.expanduser("~")).rstrip("/")
+doc = json.load(open(sys.argv[2]))
+def norm(p):
+    return os.path.normpath(os.path.expanduser(p)).rstrip("/") if isinstance(p, str) and p else ""
+def walk(node):
+    if isinstance(node, dict):
+        yield node
+        for v in node.values():
+            yield from walk(v)
+    elif isinstance(node, list):
+        for v in node:
+            yield from walk(v)
+def path_of(e):
+    for k in ("path", "cwd", "checkoutPath", "gitRoot", "folderPath"):
+        p = norm(e.get(k))
+        if p:
+            return p
+    return ""
+rows = [e for e in walk(doc) if isinstance(e, dict)]
+ws = ""
+for e in rows:
+    if e.get("worktreeId") or e.get("workspaceKind") or ("path" in e and ("branch" in e or "repo" in e)):
+        p = path_of(e)
+        if p:
+            ws = p
+            break
+claude = []
+for e in rows:
+    kind = str(e.get("agentType") or e.get("agent") or "")
+    if "claude" in kind.lower():
+        p = path_of(e)
+        if p:
+            claude.append(p)
+ok = clone != home and home not in claude and (all(c == clone for c in claude) if claude else ws == clone)
+sys.exit(0 if ok else 1)
+PY
+  st=$?
+  rm -f "$show"
+  return "$st"
 }
 
 inputs="$HOME/trial-inputs.env"
@@ -25,11 +111,21 @@ done
 profile_file=/etc/nix-darwin/local.nix
 profile=$(grep -o 'sable.profile *= *"[a-z]*"' "$profile_file" 2>/dev/null | grep -o '"[a-z]*"' | tr -d '"')
 # Trial Macs need only the access grokbot listed; other Macs need the GitHub and Sable tools.
-email=""; repos=""; agent_path=""; api_keys=""; vercel=""; gcp=""; technical=1; trial_type=""
+email=""; repos=""; agent_path=""; api_keys=""; vercel=""; gcp=""; technical=1; trial_type=""; github_user=""
 if [ "$profile" = trial ]; then
   email=$(input TRIAL_EMAIL); repos=$(input REPOS); agent_path=$(input AGENT_PATH)
   api_keys=$(input API_KEYS); vercel=$(input VERCEL); gcp=$(input GCP); trial_type=$(input TRIAL_TYPE)
-  [ -n "$(input TRIAL_GITHUB_USER)" ] || technical=0
+  github_user=$(input TRIAL_GITHUB_USER)
+  [ -n "$github_user" ] || technical=0
+  # Only DS checks Sable repos. A missing deployments line is still cloned (trial1).
+  if [ "$trial_type" = ds ]; then
+    case " $repos " in
+      *" sable-inc/deployments"[@\ ]*) ;;
+      *) repos="${repos:+$repos }sable-inc/deployments" ;;
+    esac
+  else
+    repos=""; agent_path=""
+  fi
   [ -n "$agent_path" ] && [ -z "$trial_dir" ] && trial_dir="$HOME/deployments/$agent_path"
 fi
 echo "sable-doctor  profile=${profile:-default}  host=$(scutil --get LocalHostName 2>/dev/null || hostname)"
@@ -70,8 +166,9 @@ check "Claude Code managed plugins: pstack + codex review" "rerun build-switch (
   sh -c "grep -q '\"pstack@cursor-plugins\": *true' '$ms' && grep -q '\"codex@openai-codex\": *true' '$ms'"
 check "Codex admin skills: pstack in /etc/codex/skills" "rerun build-switch (agents.nix)" test -f /etc/codex/skills/architect/SKILL.md
 od="$HOME/Library/Application Support/Orca"
-if [ ! -e "$od" ]; then bad "Orca onboarding finished" "sable-setup (seeds Orca's finished onboarding)"
-elif [ -f "$od/orca-data.json" ] && grep -Eq '"closedAt": *null' "$od/orca-data.json"; then bad "Orca onboarding finished" "finish Orca's setup screens, then bump ORCA_FLOW_VERSION in sable-setup if Orca changed them"
+orca_json="$od/orca-data.json"
+if [ ! -f "$orca_json" ] || ! jq -e '.onboarding.closedAt != null' "$orca_json" >/dev/null 2>&1; then
+  bad "Orca onboarding finished" "sable-setup (seeds or repairs Orca onboarding; bump ORCA_FLOW_VERSION if Orca changed the flow)"
 else ok "Orca onboarding finished"; fi
 if [ "$technical" = 1 ]; then
   # A trial Mac keeps the slot's sign-ins across trials, so a missing one is a regression (FAIL).
@@ -86,10 +183,49 @@ if [ "$trial_type" = ds ]; then
   d="$HOME/deployments"
   check "Claude Code trusts ~/deployments (DS)" "sable-setup" sh -c "jq -e --arg d '$d' '.projects[\$d].hasTrustDialogAccepted == true' '$HOME/.claude.json'"
   check "Codex trusts ~/deployments (DS)" "sable-setup" grep -qF "[projects.\"$d\"]" "$HOME/.codex/config.toml"
-  orca_cli=/Applications/Orca.app/Contents/Resources/bin/orca
-  if "$orca_cli" repo list --json >/dev/null 2>&1; then
-    check "Orca has ~/deployments (DS)" "sable-setup" sh -c "'$orca_cli' repo list --json | grep -qF '\"$d\"'"
-  else note "Orca not running: open Orca to check ~/deployments is added"; fi
+fi
+if [ "$profile" = trial ]; then
+  echo "== DS repo works"
+  if [ "$trial_type" != ds ]; then
+    echo "skipped (non-DS)"
+  else
+    # Pass or fail per tool. Command output is discarded so a token is never printed.
+    # Status and whoami only: no prompts and no model calls.
+    d="$HOME/deployments"
+    check "git" "sable-setup (clone ~/deployments; git status and git fetch must work)" \
+      sh -c "git -C '$d' status && GIT_TERMINAL_PROMPT=0 git -C '$d' fetch"
+    check "gh" "sign in as the slot; gh repo view sable-inc/deployments must work" \
+      sh -c "login=\$(gh api user --jq .login); [ \"\$login\" = '$github_user' ] && gh repo view sable-inc/deployments"
+    check "Claude Code" "claude auth status, from ~/deployments" \
+      sh -c "cd '$d' && claude auth status </dev/null"
+    check "Codex" "codex login status, from ~/deployments" \
+      sh -c "cd '$d' && codex login status </dev/null"
+    check "Cursor" "agent status (or cursor-agent status) from ~/deployments" \
+      sh -c "cd '$d' && bin=agent; command -v agent >/dev/null 2>&1 || bin=cursor-agent; \"\$bin\" status --format json </dev/null | jq -e '.isAuthenticated == true'"
+    check "Orca project path is ~/deployments, not the home directory" "sable-setup (register the deployments clone, never \$HOME)" \
+      orca_project_ok "$d"
+    check "Orca workspace or Claude tab cwd is ~/deployments" "sable-setup (activate the deployments workspace; a Claude tab must not start in \$HOME)" \
+      orca_workspace_ok "$d"
+    check "Debug session hint in ~/.claude/CLAUDE.md" "sable-setup (user-level hint; the deployments repo is not edited)" \
+      grep -q 'sable-debug-session-hint' "$HOME/.claude/CLAUDE.md"
+    check "call-feedback-triage skill in ~/deployments" "the skill .claude/skills/call-feedback-triage must be in the deployments checkout" \
+      test -e "$d/.claude/skills/call-feedback-triage"
+  fi
+fi
+
+if [ "$profile" = trial ]; then
+  echo "== sable CLI (every slot)"
+  # Installed with the Sable CLI package-read token, not the slot's GitHub login.
+  if sable --version >/dev/null 2>&1; then ok "sable --version"
+  else bad "sable --version" "sable-setup installs @sable-inc/toolbelt with the Sable CLI package-read token (1Password item \"Sable CLI\", field token, or /Library/Application Support/Sable/cli-packages-token). It does not use the slot's GitHub login and does not clone toolbelt."; fi
+  whoami_out=$(mktemp)
+  if sable --json whoami >"$whoami_out" 2>/dev/null; then
+    if sable_is_admin <"$whoami_out"; then ok "sable whoami: Sable admin"
+    else bad "sable whoami: Sable admin" "signed in, but user.isSableAdmin is not true. Run sable login --no-browser as a Sable admin. nix-config cannot grant that flag and stores no credential."; fi
+  else
+    bad "sable whoami" "not signed in. Run sable login --no-browser as a Sable admin. nix-config cannot grant admin."
+  fi
+  rm -f "$whoami_out"
 fi
 
 if [ "$technical" = 1 ]; then
@@ -102,7 +238,7 @@ check "@sable-inc registry in ~/.npmrc" "npm config set @sable-inc:registry http
 check "npm auth reads NPM_TOKEN" "npm config set '//npm.pkg.github.com/:_authToken' '\${NPM_TOKEN}'" grep -q 'npm.pkg.github.com/:_authToken=${NPM_TOKEN}' "$HOME/.npmrc"
 fi
 
-if [ "$technical" = 1 ]; then
+if [ "$technical" = 1 ] && { [ "$profile" != trial ] || [ "$trial_type" = ds ]; }; then
 echo "== Sable tools"
 if have sable; then
   ok "sable CLI installed ($(sable --version 2>/dev/null | head -1))"
@@ -112,7 +248,7 @@ if have sable; then
   else note "sable whoami does not mention Trials (fine outside a trial)"; fi
 else bad "sable CLI" "bun add -g @sable-inc/toolbelt"; fi
 fi
-if [ "$technical" = 1 ]; then
+if [ "$technical" = 1 ] && { [ "$profile" != trial ] || [ "$trial_type" = ds ]; }; then
 if have sablebrowse; then
   ok "SableBrowse installed"
   check "sablebrowse doctor" "sablebrowse setup" sablebrowse doctor

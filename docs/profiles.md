@@ -40,11 +40,13 @@ Run the Nix installer and `build-switch` from Terminal.app. On macOS 27, termina
 right privacy permission (Orca's terminal, for example) can't write `/etc/fstab`, and the Nix
 installer fails with "Operation not permitted".
 
-`sable-setup` finishes a trial or new-hire Mac after the install: GitHub sign-in, Sable's
-packages, the sable CLI (Trials org on trial Macs, Sable otherwise), SableBrowse, and on trial
-Macs the access listed in the slot's `trial-inputs.env`, which it downloads from the private
-`sable-inc/trial-inputs` repo (repos, trial agent, Vercel, gcloud; API keys only if asked for).
-It stops at each step a person must do and is safe to rerun.
+`sable-setup` finishes a trial or new-hire Mac after the install: GitHub sign-in, and on an
+employee Mac the sable CLI (Sable org) and SableBrowse from that Mac's `gh auth token`. A
+trial Mac installs `@sable-inc/toolbelt` with a separate `read:packages` token (1Password item
+**Sable CLI**, field `token`, or `/Library/Application Support/Sable/cli-packages-token`), not
+the slot's GitHub login, and does not clone toolbelt. Only `TRIAL_TYPE=ds` then gets the
+Trials org, SableBrowse and the repos in `trial-inputs.env`. It stops at each step a person
+must do and is safe to rerun.
 
 `sable-doctor [--trial-dir <path>]` prints PASS/FAIL per piece (apps, CLIs, gh auth and
 `read:packages`, npm registry, sable CLI and Trials org, SableBrowse and its Chrome extension,

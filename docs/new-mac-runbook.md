@@ -198,10 +198,14 @@ trial's last day**, then a `sable-setup` check. A full erase is the exception an
    - SSH keys (`~/.ssh`)
    - the global git identity (`user.name`, `user.email`) and git credentials
    - API tokens in dotfiles and config (`~/.config`, `.env` files, gh, vercel and npm auth)
-   - app sign-ins: signs out of the trialer's personal apps; keeps the slot's Claude Code, Codex, Cursor,
-     Claude app, ChatGPT app, Slack and 1Password sign-ins and clears their chats and history (trial-tools KEEP_LOGIN)
+   - app sign-ins: signs out of the trialer's personal apps; keeps the slot's Chrome, Claude Code, Codex, Cursor,
+     Claude app, ChatGPT app, Slack and 1Password sign-ins and clears their chats and history (trial-tools KEEP_LOGIN).
+     Chrome sync is off on trial Macs (`mdm/chrome-trial-sync.mobileconfig`), so synced history and bookmarks do not come back
 3. It leaves Wi-Fi networks, system settings, config profiles and Homebrew packages as they are
-4. Run the `sable-setup` check and read back that it passes and the Mac is signed out
+4. Run the `sable-setup` check and read back that it passes and the Mac is signed out.
+   `sable-doctor` also requires `sable --version` and `sable whoami` as a Sable admin on every
+   slot. The CLI package-read token is the 1Password item **Sable CLI** (field `token`) or
+   `/Library/Application Support/Sable/cli-packages-token`, not the slot's GitHub login
 5. Full erase (exception only, with Matthew's OK on this serial): in Iru, open the Mac
    (Devices > its name) > the **⋯** button at the top right, next to **Edit device details** >
    **Erase**. The blueprint and asset tag stay the same. The Mac restarts to the first setup

@@ -28,7 +28,9 @@ Sable Onboard and Sable Trial each get these items (done Nov 5, 2026):
 | library item | setting | file |
 |:--|:--|:--|
 | Device Name | name and hostname `sable-` + Asset tag | |
-| Custom Profile | upload; installs the SableBrowse and 1Password Chrome extensions | `mdm/chrome-sablebrowse.mobileconfig` |
+| Custom Profile | upload; installs the SableBrowse and 1Password Chrome extensions. Also on Default Blueprint (before a hire moves). Does not disable Chrome sync | `mdm/chrome-sablebrowse.mobileconfig` |
+| Custom Profile "Sable: Chrome sync off" | Sable Trial only. `SyncDisabled` so a trialer's history and bookmarks cannot return after cleanup; Chrome stays signed in. Not on Sable Onboard or Default Blueprint | `mdm/chrome-trial-sync.mobileconfig` |
+| File on the Mac | `/Library/Application Support/Sable/cli-packages-token`, mode `0600`, one `read:packages` token. `sable-setup` uses it to install `@sable-inc/toolbelt` on every trial slot. Not a repo clone, and not the slot's GitHub login. The same token may instead live in the 1Password item **Sable CLI** (field `token`). Never commit the token | delivered by Iru, not in this repo |
 | Custom Profile "Sable: Notifications" | upload; Slack and Orca notifications on (banners, sounds, badges), no prompt; also on Default Blueprint | `mdm/notifications.mobileconfig` |
 | Custom Script | run once per device; paste the file with `profile` set for the blueprint | `mdm/iru-bootstrap.sh` |
 | Custom Script | run daily; paste the file | `mdm/iru-doctor.sh` |
