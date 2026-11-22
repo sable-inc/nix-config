@@ -108,14 +108,16 @@ must env PATH="/usr/bin:/bin" bash -c "die() { exit 9; }; . $t/args.sh; [ \$unat
 must env PATH="/usr/bin:/bin" bash -c "die() { exit 9; }; set -- ; . $t/args.sh; [ \$unattended = 1 ]" </dev/null
 rc=0; PATH="/usr/bin:/bin" bash -c "die() { exit 9; }; set -- --bogus; . $t/args.sh" </dev/null || rc=$?
 if [ "$rc" != 9 ]; then echo "unknown flag must stop, got $rc" >&2; exit 1; fi'
-need "Devin Desktop: new hires only (cask removed on trial), no CLI installer, doctor fails a trial Mac that has it, nothing in mdm or trial docs" bash -c '
+need "Devin Desktop: new hires only (onboard profile; absent on default and trial), no CLI installer, doctor fails a trial Mac that has it, nothing in mdm or trial docs" bash -c '
 set -e
 must() { "$@" || { echo "assertion failed: $*" >&2; exit 1; }; }
 mustnot() { if "$@"; then echo "assertion should have failed: $*" >&2; exit 1; fi; }
 t=$(mktemp -d); trap "rm -rf $t" EXIT
 # the cask is installed on non-trial profiles and subtracted on trial
-must grep -q "\"devin-desktop\"" module/darwin/default.nix
-must grep -q "lib.optional (config.sable.profile == \"trial\") \"devin-desktop\"" module/darwin/default.nix
+must grep -q "lib.optional (config.sable.profile == \"onboard\") \"devin-desktop\"" module/darwin/default.nix
+# the cask is not in the shared list and not subtracted for trial: it is added for onboard only
+mustnot grep -q "^      \"devin-desktop\"" module/darwin/default.nix
+mustnot grep -q "subtractLists.*devin" module/darwin/default.nix
 # Devin appears only in default.nix (cask), the doctor and the docs: not in profile.nix trial paths, mdm/ or the trial docs
 mustnot grep -qi devin module/darwin/profile.nix
 mustnot grep -rqi devin mdm docs/claude-setup-v1.md docs/iru.md
@@ -385,6 +387,28 @@ SABLE_INVITE_LOG=$outlog PATH="$tmp:$PATH" bash module/darwin/bin/sable-accept-i
 grep -q sable-accept-invites module/darwin/profile.nix
 grep -q sable-accept-invites mdm/iru-update.sh
 '
+if ! command -v nix-instantiate >/dev/null 2>&1 && command -v apt-get >/dev/null 2>&1; then
+  echo "installing nix-bin for nix-instantiate --parse (same as CI)" >&2
+  sudo apt-get update -qq && sudo apt-get install -y -qq nix-bin || true
+fi
+if ! command -v nix-instantiate >/dev/null 2>&1; then
+  echo "FAIL  nix parse: nix-instantiate not installed. CI installs nix-bin with apt-get; install nix and rerun." >&2
+  fail=1
+else
+  need "every .nix file parses (nix-instantiate --parse), and the checker rejects a broken file and a duplicate scalar attribute" bash -c '
+set -e
+t=$(mktemp -d); trap "rm -rf $t" EXIT
+parse_all() { local f; for f in "$@"; do nix-instantiate --parse "$f" >/dev/null 2>"$t/err" || { echo "does not parse: $f" >&2; cat "$t/err" >&2; return 1; }; done; }
+files=$(git ls-files "*.nix")
+if [ -z "$files" ]; then echo "no .nix files found" >&2; exit 1; fi
+# shellcheck disable=SC2086
+if ! parse_all $files; then exit 1; fi
+# self-test: the checker must fail on a syntax error and on a duplicated non-attrset attribute
+printf "{ a = ; }\n" >"$t/syntax.nix"
+printf "{ a = 1; a = 2; }\n" >"$t/dup.nix"
+if parse_all "$t/syntax.nix" 2>/dev/null; then echo "checker accepted a syntax error" >&2; exit 1; fi
+if parse_all "$t/dup.nix" 2>/dev/null; then echo "checker accepted a duplicated attribute" >&2; exit 1; fi'
+fi
 if ! command -v shellcheck >/dev/null 2>&1; then
   if command -v apt-get >/dev/null 2>&1; then
     echo "installing shellcheck (same as CI)" >&2

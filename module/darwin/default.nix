@@ -30,17 +30,18 @@ in
     brews = [
       "livekit-cli"
     ];
-    casks = lib.subtractLists (lib.optional (config.sable.profile == "trial") "devin-desktop") [
+    casks = [
       "chatgpt" # Codex desktop is now part of the ChatGPT app.
       "claude"
       "cursor" # not nix: a store copy is read-only, so Cursor could not update itself
-      "devin-desktop"
       "google-chrome"
       "ghostty"
       "orbstack"
       "wispr-flow"
       "zoom"
-    ];
+    ]
+    # Devin Desktop (auto-updating, bundles the CLI) is for new hires only.
+    ++ lib.optional (config.sable.profile == "onboard") "devin-desktop";
     onActivation = {
       autoUpdate = true;
       cleanup = "zap";
