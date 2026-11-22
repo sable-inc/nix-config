@@ -362,6 +362,21 @@ if [ "$profile" = trial ]; then
   fi
 fi
 
+# Claude Code and Codex are user-owned native installs in ~/.local/bin that update themselves
+# (and Orca can update them). nix-config never pins or installs them. A nix-store copy from an
+# older build is not the user's own, so it is replaced. These installers always fetch the latest.
+say "Agent CLIs (Claude Code, Codex)"
+export PATH="$HOME/.local/bin:$PATH"
+agent_cli() { # agent_cli <command> <installer url> <shell>
+  local bin
+  bin=$(command -v "$1" 2>/dev/null || true)
+  case "$bin" in "$HOME"/.local/bin/*) echo "$1: $("$1" --version 2>/dev/null | head -1) (updates itself: $1 update)"; return ;; esac
+  echo "installing $1 from its own installer..."
+  /usr/bin/curl --proto '=https' --tlsv1.2 -fsSL "$2" | "$3" || you "couldn't install $1; rerun sable-setup"
+}
+agent_cli claude https://claude.ai/install.sh bash
+agent_cli codex https://chatgpt.com/codex/install.sh sh
+
 say "GitHub"
 github_login "$github_user"
 if [ -n "$github_user" ] && [ "$(gh api user --jq .login)" != "$github_user" ]; then
@@ -407,7 +422,7 @@ fi
 # Employee Macs keep the old install, which stops setup if it fails.
 if sable_stack "$profile" "$trial_type"; then
   if [ "$profile" != trial ]; then
-    have sable || bun add -g @sable-inc/toolbelt
+    bun add -g @sable-inc/toolbelt@latest
     sable update >/dev/null 2>&1 || true
   fi
 
@@ -430,7 +445,7 @@ if sable_stack "$profile" "$trial_type"; then
   fi
 
   say "SableBrowse"
-  have sablebrowse || npm install -g @sable-inc/sablebrowse
+  npm install -g @sable-inc/sablebrowse@latest
   you "Click \"Add to Chrome\" on the page that opens (sign in to Chrome${email:+ as $email} first if asked)."
   sablebrowse setup
 
@@ -643,7 +658,7 @@ fi
 
 if [ "$vercel" = yes ]; then
   say "Vercel"
-  have vercel || npm install -g vercel
+  npm install -g vercel@latest
   if ! vercel whoami >/dev/null 2>&1; then
     you "Sign in to Vercel${email:+ as $email}."
     vercel login

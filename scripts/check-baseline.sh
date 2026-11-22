@@ -40,6 +40,12 @@ grep -q "./agents.nix" module/darwin/default.nix &&
 grep -q "ClaudeCode/managed-settings.json" module/darwin/agents.nix &&
 grep -q "/etc/codex/skills" module/darwin/agents.nix &&
 grep -Eq "pstackRev = \"[0-9a-f]{40}\"" module/darwin/agents.nix'
+need "Claude Code and Codex are user-owned installs, not nix packages (so they can self-update)" sh -c '
+! grep -Eq "claude-code.enable|codex.enable" module/shared/home-manager.nix &&
+grep -q "claude.ai/install.sh" module/darwin/bin/sable-setup &&
+grep -q "chatgpt.com/codex/install.sh" module/darwin/bin/sable-setup &&
+grep -q "\.local/bin" module/darwin/home-manager.nix &&
+! grep -rq "DISABLE_AUTOUPDATER" module'
 need "Orca is installed by activation" grep -q "TeamIdentifier=6CX3WHS9HZ" module/darwin/orca.nix
 need "sable-setup: agent sign-ins, Orca repair, DS-only stack, deployments default, CLI from a package-read token" sh -c '
 f=module/darwin/bin/sable-setup

@@ -61,6 +61,13 @@
           packages = import ./packages.nix { inherit pkgs; };
           username = user;
         };
+        # NixOS has no Sable trial/new-hire flow, so nix still installs the agent CLIs here.
+        programs = {
+          claude-code.enable = true;
+          codex.enable = true;
+          opencode.enable = true;
+          pi-coding-agent.enable = true;
+        };
         dconf.settings = {
           "org/gnome/desktop/background" = {
             picture-options = "zoom";

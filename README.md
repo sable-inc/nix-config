@@ -120,7 +120,7 @@ Set `system.stateVersion` to the NixOS release used for that machine's first ins
 
 ## Agent Configuration
 
-Nix installs Claude Code, Codex, OpenCode, and Pi. It manages only the Sable baseline in `module/darwin/agents.nix`: Claude Code's managed plugins (pstack and Codex review, `/Library/Application Support/ClaudeCode/managed-settings.json`) and pstack's skills for Codex (`/etc/codex/skills`). Everything else (instructions, other skills, settings, plugins) is yours: configure them normally in `~/.claude`, `~/.codex`, `~/.config/opencode`, and `~/.pi/agent`; rebuilds leave those directories under local, imperative control.
+On Macs, Claude Code and Codex are not installed by nix. `sable-setup` installs them with their own native installers into `~/.local/bin` (always the latest), and they update themselves (`claude update`, `codex update`, or the Update button in Orca). A nix-store copy would be read-only and pinned to the flake.lock date. Nix still installs OpenCode and Pi on NixOS only. The Sable baseline in `module/darwin/agents.nix` is managed (Claude Code's managed plugins and pstack's skills for Codex); it does not pin or block CLI versions. Everything else (instructions, other skills, settings, plugins) is yours: configure it normally in `~/.claude`, `~/.codex`, `~/.config/opencode`, and `~/.pi/agent`.
 
 ## Secrets
 

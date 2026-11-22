@@ -40,8 +40,6 @@ in
     stateVersion = "26.05";
   };
   programs = {
-    claude-code.enable = true;
-    codex.enable = true;
     direnv = {
       enable = true;
       nix-direnv.enable = true;
@@ -184,8 +182,6 @@ in
         pkgs.zls
       ];
     };
-    opencode.enable = true;
-    pi-coding-agent.enable = true;
     tmux = {
       enable = true;
       baseIndex = 1;

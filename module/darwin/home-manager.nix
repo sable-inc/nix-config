@@ -1,5 +1,6 @@
 {
   config,
+  lib,
   user,
   targetDir,
   ...
@@ -25,6 +26,10 @@
           inherit pkgs;
           profile = config.sable.profile;
         };
+        # Claude Code and Codex are user-owned native installs in ~/.local/bin (sable-setup),
+        # not nix store binaries, so Orca and `claude update` / `codex update` can replace them.
+        # Listed first so nothing else on PATH shadows a user's newer copy.
+        home.sessionPath = lib.mkBefore [ "$HOME/.local/bin" ];
         nix.gc = {
           automatic = true;
           dates = "weekly";
