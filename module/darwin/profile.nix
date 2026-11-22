@@ -31,7 +31,6 @@ in
       environment.systemPackages = [
         sableDoctor
         sableSetup
-        sableAcceptInvites
       ];
       homebrew.casks = [
         "notion"
@@ -88,6 +87,7 @@ in
       homebrew.onActivation.cleanup = lib.mkForce "none";
     })
     (lib.mkIf (profile == "trial") {
+      environment.systemPackages = [ sableAcceptInvites ];
       homebrew.casks = [
         "figma"
         "canva"

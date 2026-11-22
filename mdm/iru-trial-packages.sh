@@ -18,7 +18,7 @@ home=$(dscl . -read /Users/sable NFSHomeDirectory | awk '{print $2}')
 [ -n "$home" ] || die "no home directory for user sable"
 inputs="$home/trial-inputs.env"
 if [ ! -s "$inputs" ]; then
-  die "no $inputs yet; Iru retries after sable-setup has fetched this slot's list"
+  die "no $inputs yet. sable-setup fetches the list first; this script writes the token on a later check-in, then run sable-setup again"
 fi
 trial_type=$(sed -n 's/^TRIAL_TYPE="\{0,1\}\([^"]*\)"\{0,1\}.*/\1/p' "$inputs" | head -1)
 if [ "$trial_type" != ds ]; then

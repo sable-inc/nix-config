@@ -185,7 +185,7 @@ install_sable_cli() {
     return 0
   fi
   if ! bunfig_ready; then
-    echo "warning: ~/.bunfig.toml has no @sable-inc token. Onboarding's Iru script (mdm/iru-trial-packages.sh) writes it from github-trial-packages-token. This repo does not contain the token." >&2
+    echo "warning: ~/.bunfig.toml has no @sable-inc token yet. This run fetches trial-inputs.env. The next Iru check-in of mdm/iru-trial-packages.sh writes the token from github-trial-packages-token when TRIAL_TYPE=ds. Run sable-setup again after that check-in. This repo does not contain the token." >&2
     return 0
   fi
   chmod 600 "$HOME/.bunfig.toml"

@@ -26,7 +26,11 @@ fi
 ensure_log() {
   local dir
   dir=$(dirname "$log")
-  if [ -w "$dir" ] && { [ ! -e "$log" ] || [ -w "$log" ]; }; then
+  # Appending needs the file writable. The directory can stay root-owned.
+  if [ -e "$log" ] && [ -w "$log" ]; then
+    return 0
+  fi
+  if [ -w "$dir" ]; then
     return 0
   fi
   if [ -n "${SABLE_INVITE_LOG:-}" ]; then

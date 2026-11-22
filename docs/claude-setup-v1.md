@@ -37,13 +37,17 @@ The Onboarding bot writes one file per trial, `<slot>/trial-inputs.env` (for exa
 `trial3/trial-inputs.env`), in the private repo `sable-inc/trial-inputs`, with no secrets in it.
 Nobody copies it: `sable-setup` signs in to GitHub as the slot's account and downloads the file
 for this Mac's slot (from its name, `sable-trial3`). Every slot's GitHub account needs read
-access to that repo. Nobody accepts GitHub invites by hand: `sable-accept-invites` lists
-`/user/repository_invitations` and accepts every pending invite whose repository owner is
-`sable-inc`, and no other owner. It runs at setup and at each Iru check-in (`mdm/iru-update.sh`),
-as the slot user with that slot's own `gh` sign-in. It logs only the repo name and permission
-to `/Library/Logs/sable/github-invites.log`. `sable-doctor` fails if a `sable-inc` invite is
-still pending, and warns if `gh` is not signed in. This includes EL, AE and Marketing trials;
-`sable-setup` signs those out of GitHub again after it has the list. Leave out any line the role doesn't need:
+access to that repo. Nobody accepts GitHub invites by hand. On every trial Mac, including non-DS, `sable-accept-invites`
+lists `/user/repository_invitations` and accepts every pending invite whose repository owner is
+`sable-inc`, and no other owner. That is how the slot gets `sable-inc/trial-inputs` without a
+click. It does not decide which repos the slot may have: GitHub already sent the invite. Setup
+still clones only the DS `REPOS` list, and a non-DS slot still gets no Sable checkout, no Trials
+org login, and no sable CLI. The step runs at setup and at each Iru check-in (`mdm/iru-update.sh`),
+as the slot user with that slot's own `gh` sign-in. The log
+`/Library/Logs/sable/github-invites.log` records a UTC timestamp, the repo name, and the
+permission. It never records a token or the invite JSON. `sable-doctor` fails if a `sable-inc`
+invite is still pending, and warns if `gh` is not signed in. EL, AE and Marketing trials are
+included; `sable-setup` signs those out of GitHub again after it has the list. Leave out any line the role doesn't need:
 
 ```sh
 # A DS trial
@@ -161,8 +165,10 @@ with that privacy permission. Terminal.app has it; Ghostty and Orca don't by def
    ```
 7. In Terminal.app, run `sable-setup`, for every role. It signs in to GitHub as the slot's
    account and downloads this slot's list from `sable-inc/trial-inputs`. Then:
-   - **DS:** it installs `@sable-inc/toolbelt@^0.80.0`, `@sable-inc/e2e` and `@sable-inc/wiki`
-     with bun, using the `@sable-inc` scope in `~/.bunfig.toml`, and runs `sable login --device`
+   - **DS:** the first run fetches this slot's list. The next Iru check-in then writes
+     `~/.bunfig.toml` from `github-trial-packages-token`, and a second `sable-setup` installs
+     `@sable-inc/toolbelt@^0.80.0`, `@sable-inc/e2e` and `@sable-inc/wiki`
+     with bun and runs `sable login --device`
      once as this slot's trial account when `sable whoami` is not that email. It does not clone
      toolbelt. Then Trials org login, SableBrowse, the repos (adding `sable-inc/deployments`
      when `REPOS` omits it), Orca's clone-from-URL into `~/deployments`, the Debug session

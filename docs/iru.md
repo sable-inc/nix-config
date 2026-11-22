@@ -33,7 +33,7 @@ Sable Onboard and Sable Trial each get these items (done Nov 5, 2026):
 | Device Name | name and hostname `sable-` + Asset tag | |
 | Custom Profile | upload; installs the SableBrowse and 1Password Chrome extensions. Also on Default Blueprint (before a hire moves). Does not disable Chrome sync | `mdm/chrome-sablebrowse.mobileconfig` |
 | Custom Profile "Sable: Chrome sync off" | Sable Trial only. `SyncDisabled` so a trialer's history and bookmarks cannot return after cleanup; Chrome stays signed in. Not on Sable Onboard or Default Blueprint | `mdm/chrome-trial-sync.mobileconfig` |
-| Custom Script "Sable: trial packages" | Sable Trial only, and only when `TRIAL_TYPE=ds` in `~/trial-inputs.env`. If that file is not there yet, the script fails so Iru retries. A non-DS slot exits without writing. GitHub classic token, `read:packages` only. On the Onboarding box the secret is `github-trial-packages-token`. Paste it into `token=` in the Iru item (the copy in git is empty). The script writes only `~/.bunfig.toml` for user `sable`, mode `600`, with `[install.scopes]` and `"@sable-inc" = { url = "https://npm.pkg.github.com", token = "<token>" }`. The Mac never reads the box. Does not write `credentials.json`. Never commit the token | `mdm/iru-trial-packages.sh` |
+| Custom Script "Sable: trial packages" | Sable Trial only, and only when `TRIAL_TYPE=ds` in `~/trial-inputs.env`. If that file is not there yet, the script fails so Iru retries. After the check-in that writes the file, run `sable-setup` again to install. A non-DS slot exits without writing. GitHub classic token, `read:packages` only. On the Onboarding box the secret is `github-trial-packages-token`. Paste it into `token=` in the Iru item (the copy in git is empty). The script writes only `~/.bunfig.toml` for user `sable`, mode `600`, with `[install.scopes]` and `"@sable-inc" = { url = "https://npm.pkg.github.com", token = "<token>" }`. The Mac never reads the box. Does not write `credentials.json`. Never commit the token | `mdm/iru-trial-packages.sh` |
 | Custom Profile "Sable: Notifications" | not assigned yet. Upload before `git push origin main:fleet`. Slack and Orca notifications on (banners, sounds, badges), no prompt; also on Default Blueprint. Does not require a supervised Mac | `mdm/notifications.mobileconfig` |
 | Custom Script | run once per device; paste the file with `profile` set for the blueprint | `mdm/iru-bootstrap.sh` |
 | Custom Script | run daily; paste the file | `mdm/iru-doctor.sh` |
@@ -50,8 +50,10 @@ set `ref` in the pasted script to it, and set it back to `main` afterwards.
 
 On a trial Mac, every check-in of `iru-update.sh` first runs `sable-accept-invites` as the
 `sable` user, with that slot's own `gh` sign-in. It accepts every pending repository invite
-whose owner is `sable-inc` and leaves every other owner pending. The log
-`/Library/Logs/sable/github-invites.log` records the repo name and permission only.
+whose owner is `sable-inc` and leaves every other owner pending. Accepting an invite does not
+add a checkout: setup still clones only a DS slot's `REPOS`. The log
+`/Library/Logs/sable/github-invites.log` records a UTC timestamp, the repo name, and the
+permission. It never records a token or the invite JSON.
 `sable-setup` runs the same step. `sable-doctor` fails while a `sable-inc` invite is still
 pending, and warns when `gh` is not signed in.
 

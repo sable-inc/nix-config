@@ -250,7 +250,7 @@ slot_email() { # sable-trial -> trial@sable.ai, sable-trial1 -> trial1@sable.ai
 if [ "$profile" = trial ] && [ "$trial_type" = ds ]; then
   echo "== sable CLI (DS)"
   if sable --version >/dev/null 2>&1; then ok "sable --version"
-  else bad "sable --version" "sable-setup installs @sable-inc/toolbelt @sable-inc/e2e and @sable-inc/wiki with bun, after Iru writes ~/.bunfig.toml. It does not clone toolbelt."; fi
+  else bad "sable --version" "after sable-setup fetches trial-inputs.env, the next Iru check-in writes ~/.bunfig.toml when TRIAL_TYPE=ds. Run sable-setup again after that check-in. It does not clone toolbelt."; fi
   slot_mail=$(slot_email || true)
   whoami_out=$(mktemp)
   if [ -z "$slot_mail" ]; then

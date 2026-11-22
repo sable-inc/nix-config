@@ -10,7 +10,8 @@ accept_code=0
 if grep -q 'sable.profile *= *"trial"' /etc/nix-darwin/local.nix 2>/dev/null; then
   accept=/run/current-system/sw/bin/sable-accept-invites
   if [ -x "$accept" ]; then
-    install -d -o root -g wheel -m 755 /Library/Logs/sable
+    install -d -o sable -g staff -m 755 /Library/Logs/sable
+    chown sable:staff /Library/Logs/sable
     touch /Library/Logs/sable/github-invites.log
     chown sable:staff /Library/Logs/sable/github-invites.log
     chmod 644 /Library/Logs/sable/github-invites.log
