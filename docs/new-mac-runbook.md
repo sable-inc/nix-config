@@ -187,8 +187,10 @@ trial's last day**, then a `sable-setup` check. A full erase is the exception an
 
 1. The Onboarding bot's midnight routine runs the account reset for the slot per the wiki, with
    no per-trial go from Matthew. It is the same routine that runs step 2
-2. At midnight PT on the last day, run the trial cleanup script on the slot's Mac
-   (the Iru custom script from Origin sable-ai/trial-tools `mac-cleanup/trial-light-cleanup.sh`; that script is the one source for this list). It deletes:
+2. At the end of the trial's last day, the Onboarding bot's midnight PT routine runs
+   `mac-cleanup/trial-light-cleanup.sh` (Origin sable-ai/trial-tools) automatically through
+   an Iru custom script, with no per-trial go. That script is the one source for this list.
+   It deletes:
    - everything in Desktop, Downloads and Documents
    - local code folders and repos
    - browser profiles, cookies and saved passwords
