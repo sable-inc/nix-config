@@ -47,8 +47,8 @@ DS trial (`TRIAL_TYPE=ds`) installs `@sable-inc/toolbelt@^0.80.0`, `@sable-inc/e
 (mode `600`, `[install.scopes]`, `@sable-inc`), not from the slot's GitHub login, and setup
 does not clone toolbelt. Sign-in is `sable login --device` as that slot's own trial account.
 Engineering and every other trial type, including idle and unknown, get no sable CLI; setup
-signs it out, deletes `~/.config/sable`, and removes the `@sable-inc` scope if it is already
-there. Only `ds` then gets the Trials org, SableBrowse and the repos in
+signs it out, deletes `~/.config/sable`, and removes only the `@sable-inc` entry from
+`~/.bunfig.toml` if it is already there. Other Bun settings in that file stay. Only `ds` then gets the Trials org, SableBrowse and the repos in
 `trial-inputs.env`. On a trial Mac it also accepts every pending `sable-inc` repository
 invite (`sable-accept-invites`); invites from any other owner stay pending. The same step
 runs at each Iru check-in. It stops at each step a person must do and is safe to rerun.

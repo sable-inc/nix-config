@@ -33,13 +33,13 @@ Sable Onboard and Sable Trial each get these items (done Nov 5, 2026):
 | Device Name | name and hostname `sable-` + Asset tag | |
 | Custom Profile | upload; installs the SableBrowse and 1Password Chrome extensions. Also on Default Blueprint (before a hire moves). Does not disable Chrome sync | `mdm/chrome-sablebrowse.mobileconfig` |
 | Custom Profile "Sable: Chrome sync off" | Sable Trial only. `SyncDisabled` so a trialer's history and bookmarks cannot return after cleanup; Chrome stays signed in. Not on Sable Onboard or Default Blueprint | `mdm/chrome-trial-sync.mobileconfig` |
-| Custom Script "Sable: trial packages" | Sable Trial only. GitHub classic token, `read:packages` only. On the Onboarding box the secret is `github-trial-packages-token`. Paste it into `token=` in the Iru item (the copy in git is empty). The script writes only `~/.bunfig.toml` for user `sable`, mode `600`, with `[install.scopes]` and `"@sable-inc" = { url = "https://npm.pkg.github.com", token = "<token>" }`. The Mac never reads the box. Does not write `credentials.json`. Never commit the token | `mdm/iru-trial-packages.sh` |
+| Custom Script "Sable: trial packages" | Sable Trial only, and only when `TRIAL_TYPE=ds` in `~/trial-inputs.env`. If that file is not there yet, the script fails so Iru retries. A non-DS slot exits without writing. GitHub classic token, `read:packages` only. On the Onboarding box the secret is `github-trial-packages-token`. Paste it into `token=` in the Iru item (the copy in git is empty). The script writes only `~/.bunfig.toml` for user `sable`, mode `600`, with `[install.scopes]` and `"@sable-inc" = { url = "https://npm.pkg.github.com", token = "<token>" }`. The Mac never reads the box. Does not write `credentials.json`. Never commit the token | `mdm/iru-trial-packages.sh` |
 | Custom Profile "Sable: Notifications" | not assigned yet. Upload before `git push origin main:fleet`. Slack and Orca notifications on (banners, sounds, badges), no prompt; also on Default Blueprint. Does not require a supervised Mac | `mdm/notifications.mobileconfig` |
 | Custom Script | run once per device; paste the file with `profile` set for the blueprint | `mdm/iru-bootstrap.sh` |
 | Custom Script | run daily; paste the file | `mdm/iru-doctor.sh` |
 | Custom Script | run every check-in; paste the file (same for both blueprints). On a trial Mac it also runs `sable-accept-invites` as user `sable` before the rebuild | `mdm/iru-update.sh` |
 | Custom Script "Sable: Vanta Device Monitor" | run once per device; paste the file with the Vanta key filled in; also on Default Blueprint | `mdm/iru-vanta.sh` |
-| Automated Device Enrollment | Mac: "Skip all screens", auto-advance (needs Ethernet), primary account "Skip", provision local admin `sable` (password is 1Password item **Trial-pw** in that slot's own vault `Trial – <slot>`; the guest does not see a shared Trial vault; no vault id is stored here), made the MDM-enabled user | |
+| Automated Device Enrollment | Mac: "Skip all screens", auto-advance (needs Ethernet), primary account "Skip", provision local admin `sable`, made the MDM-enabled user. Sable Trial password: 1Password item **Trial-pw** in that slot's own vault `Trial – <slot>` (the guest does not see a shared Trial vault; no vault id is stored here). Sable Onboard password: the setup password from Sable's vault | |
 
 The bootstrap is one library item per blueprint, because `profile` differs. The other items
 are shared. To make another blueprint like these, duplicate Sable Trial in Iru, then swap its
@@ -165,7 +165,7 @@ These Macs appear in Iru on their own.
    erase it first, from Iru if it's enrolled, otherwise as the preflight says. With Ethernet,
    Setup Assistant needs nothing; on Wi-Fi, pick the language, country and network. A Remote
    Management screen appears and Iru takes over
-3. At the login screen, log in as `sable` (1Password item **Trial-pw** in that slot's own vault `Trial – <slot>`) and leave it logged
+3. At the login screen, log in as `sable` (a trial Mac: 1Password item **Trial-pw** in vault `Trial – <slot>`; a new-hire Mac: the setup password from Sable's vault) and leave it logged
    in and plugged in. The bootstrap waits for that login before its last step
 
 ### 2. Bought anywhere else (retail, such as Best Buy)

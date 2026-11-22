@@ -198,8 +198,24 @@ remove_sable_cli() { # non-DS slots build the platform themselves: no binary, no
   if have bun; then bun remove -g @sable-inc/toolbelt @sable-inc/e2e @sable-inc/wiki >/dev/null 2>&1 || true; fi
   if have sable; then rm -f "$(command -v sable)"; fi
   rm -rf "${XDG_CONFIG_HOME:-$HOME/.config}/sable"
-  if [ -f "$HOME/.bunfig.toml" ] && grep -q '@sable-inc' "$HOME/.bunfig.toml"; then
-    rm -f "$HOME/.bunfig.toml"
+  # Drop only the @sable-inc scope. Other Bun settings in the file stay.
+  if [ -f "$HOME/.bunfig.toml" ]; then
+    python3 -I - "$HOME/.bunfig.toml" <<'PY'
+import os, sys
+path = sys.argv[1]
+kept = []
+for line in open(path):
+    stripped = line.strip()
+    if stripped.startswith('"@sable-inc"') or stripped.startswith("'@sable-inc'") or stripped.startswith("@sable-inc"):
+        continue
+    kept.append(line)
+meaningful = [ln.strip() for ln in kept if ln.strip() and not ln.strip().startswith("#") and ln.strip() != "[install.scopes]"]
+if not meaningful:
+    os.remove(path)
+else:
+    open(path, "w").write("".join(kept))
+    os.chmod(path, 0o600)
+PY
   fi
   if have sable; then
     echo "warning: sable is still on PATH after uninstall; sable-doctor will fail this slot" >&2
@@ -209,7 +225,7 @@ sable_login_device() {
   # One sign-in, as this slot's own trial account (trial@sable.ai, trial1@sable.ai, …).
   # Those accounts already have the platform admin flag. Google OAuth, headless:
   # sable login --device. Never copy ~/.config/sable/credentials.json from another machine.
-  local email log tmp pid
+  local email log tmp pid filtered
   email=$(slot_email) || { echo "warning: this Mac's name is not sable-trial*, so the slot account is unknown" >&2; return 0; }
   if sable_whoami_is_slot; then
     echo "sable CLI: signed in as ${email}"
@@ -217,26 +233,31 @@ sable_login_device() {
     return 0
   fi
   log=/Library/Logs/sable/sable-login-device.txt
+  # Root-owned, mode 600. Onboarding reads it as root. Other local users cannot.
   sudo mkdir -p /Library/Logs/sable
-  sudo touch "$log"
-  sudo chown "$(id -un)" "$log"
-  sudo chmod 644 "$log"
+  sudo chmod 755 /Library/Logs/sable
   tmp=$(mktemp)
-  : >"$log"
+  filtered=$(mktemp)
+  chmod 600 "$tmp" "$filtered"
   sable login --device >"$tmp" 2>&1 &
   pid=$!
   # The URL and code are printed before the command waits. Tokens are not.
   for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
-    python3 -I -c 'import re,sys
-text=open(sys.argv[1], errors="replace").read()
-lines=[]
+    python3 -I - "$tmp" "$filtered" <<'PY' || true
+import re, sys
+text = open(sys.argv[1], errors="replace").read()
+lines = []
 for line in text.splitlines():
     if re.search(r"ghp_|github_pat_|accessToken|refreshToken|eyJ", line):
         continue
     if "http://" in line or "https://" in line or "code" in line.lower():
         lines.append(line)
-open(sys.argv[2],"w").write("\n".join(lines)+("\n" if lines else ""))' "$tmp" "$log" || true
-    grep -q 'https://' "$log" 2>/dev/null && break
+open(sys.argv[2], "w").write("\n".join(lines) + ("\n" if lines else ""))
+PY
+    sudo cp "$filtered" "$log"
+    sudo chown root:wheel "$log"
+    sudo chmod 600 "$log"
+    grep -q 'https://' "$filtered" 2>/dev/null && break
     kill -0 "$pid" 2>/dev/null || break
     sleep 1
   done
@@ -244,7 +265,7 @@ open(sys.argv[2],"w").write("\n".join(lines)+("\n" if lines else ""))' "$tmp" "$
   set +e
   wait "$pid"
   set -e
-  rm -f "$tmp"
+  rm -f "$tmp" "$filtered"
   if [ -f "$HOME/.config/sable/credentials.json" ]; then chmod 600 "$HOME/.config/sable/credentials.json"; fi
   if sable_whoami_is_slot; then echo "sable CLI: signed in as ${email}"
   else echo "warning: sable whoami is not ${email}. sable-doctor will fail until Onboarding finishes the device login as that account." >&2

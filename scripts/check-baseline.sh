@@ -72,7 +72,7 @@ for l in "notifications on (Iru Sable: Notifications)" "Claude Code managed plug
          "Orca active workspace is ~/deployments" "Claude tabs open in ~/deployments" \
          "no pending sable-inc repository invites" \
          "gh not signed in; pending sable-inc invites were not checked"; do grep -qF "$l" $f || exit 1; done
-grep -q "all(c == clone for c in claude)" $f && ! grep -q "else ws == clone" $f && ! grep -q "not claude and ws" $f
+grep -q "all(c == clone for c in claude)" $f && ! grep -q "else ws == clone" $f && ! grep -q "not claude and ws" $f || exit 1
 for c in "git -C" "git fetch" "gh repo view sable-inc/deployments" "claude auth status" \
          "codex login status" "status --format json" "isAuthenticated" "repo list --json"; do
   grep -qF "$c" $f || exit 1
@@ -119,7 +119,8 @@ f=mdm/iru-trial-packages.sh
 grep -q "github-trial-packages-token" $f && grep -q "token=\"\"" $f &&
 grep -q "\[install.scopes\]" $f && grep -q "@sable-inc" $f &&
 grep -q "npm.pkg.github.com" $f && grep -q "chmod 600" $f &&
-grep -q "does not touch credentials.json" $f
+grep -q "does not touch credentials.json" $f &&
+grep -q "TRIAL_TYPE" $f && grep -q "not ds" $f
 '
 need "Chrome sync is off for trial only; the shared SableBrowse profile does not set SyncDisabled" py '
 import plistlib

@@ -88,8 +88,9 @@ Each DS Mac signs in once as that slot's own trial account (`trial@sable.ai` on
 `sable-trial`, `trial1@sable.ai` on `sable-trial1`), not as a separate admin account.
 Those accounts already have the platform admin flag. It is Google OAuth. Setup runs
 `sable login --device` when `sable whoami` is missing or is a different email, and writes
-the device URL and code (no tokens) to `/Library/Logs/sable/sable-login-device.txt` so
-Onboarding can finish it in a browser as that slot's account. Credentials stay in
+the device URL and code (no tokens) to `/Library/Logs/sable/sable-login-device.txt`.
+That file is owned by root, mode `600`, so only root can read it; Onboarding finishes
+the sign-in in a browser as that slot's account. Credentials stay in
 `~/.config/sable/credentials.json` (mode `0600`, auto-refresh). The reset keeps that file.
 Never copy it from another machine.
 
@@ -166,14 +167,14 @@ with that privacy permission. Terminal.app has it; Ghostty and Orca don't by def
      toolbelt. Then Trials org login, SableBrowse, the repos (adding `sable-inc/deployments`
      when `REPOS` omits it), Orca's clone-from-URL into `~/deployments`, the Debug session
      hint, and checks that git, gh, Claude Code, Codex, Cursor and Orca work there.
-   - **EL, AE, Marketing, and an idle slot:** no Sable repos and no sable CLI. If the CLI
-     is installed, setup signs it out and removes it. An idle slot signs GitHub out and
-     says to sign in to Chrome, Slack and the other apps with the slot's Google account.
-   - **Every other trial type:** no Sable repos, no Trials org login, no SableBrowse, no
-     toolbelt workflow, and no sable CLI. It still signs in to Claude Code and Codex when those sign-ins are
-     missing, and sets up any API keys, Vercel or GCP listed in the file. An unknown
-     `TRIAL_TYPE` warns and continues. It ends with `sable-doctor`. Safe to rerun: it skips
-     what's already done. Then sign in to the apps as above.
+   - **Every type other than DS** (eng, fde, design, ae, el, marketing, idle, and unknown):
+     no Sable repos, no Trials org login, no SableBrowse, no toolbelt workflow, and no sable
+     CLI. If the CLI is installed, setup signs it out and removes it, including only the
+     `@sable-inc` entry in `~/.bunfig.toml`. It still signs in to Claude Code and Codex when
+     those sign-ins are missing, and sets up any API keys, Vercel or GCP listed in the file.
+     An idle slot signs GitHub out and says to sign in to Chrome, Slack and the other apps
+     with the slot's Google account. An unknown `TRIAL_TYPE` warns and continues. It ends
+     with `sable-doctor`. Safe to rerun: it skips what's already done. Then sign in to the apps as above.
 
 If something fails and the fix isn't obvious, run `claude` in Terminal.app and paste the
 output.
