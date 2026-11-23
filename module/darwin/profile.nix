@@ -16,6 +16,12 @@ let
   sableDoctor = pkgs.writeShellScriptBin "sable-doctor" (sableLib + builtins.readFile ./bin/sable-doctor);
   sableSetup = pkgs.writeShellScriptBin "sable-setup" (sableLib + builtins.readFile ./bin/sable-setup);
   sableAcceptInvites = pkgs.writeShellScriptBin "sable-accept-invites" (builtins.readFile ./bin/sable-accept-invites);
+  # sable-npm-token: what NPM_TOKEN should hold (sable-lib.sh sable_npm_token). On a trial Mac that is the
+  # @sable-inc bunfig scope token when the slot has one (DS), else gh; never the slot's repo-only gh token
+  # (trial1 Nov 23 2026: `sable update` got 403 on @sable-inc/apps). Prints the token only to the $(...) below.
+  sableNpmToken = pkgs.writeShellScriptBin "sable-npm-token" (sableLib + ''
+    sable_npm_token "''${1:-${profile}}"
+  '');
 in
 {
   options.sable.profile = lib.mkOption {
@@ -77,9 +83,10 @@ in
           "$HOME/.npm-global/bin"
           "$HOME/.bun/bin"
         ];
-        # @sable-inc packages and `sable update` read the GitHub token from NPM_TOKEN.
+        # @sable-inc packages and `sable update` read the GitHub token from NPM_TOKEN (~/.npmrc refers to it).
+        # Trial: the @sable-inc bunfig scope token when the slot has one (DS), else gh (sable-npm-token).
         programs.zsh.initContent = ''
-          export NPM_TOKEN="$(gh auth token 2>/dev/null)"
+          export NPM_TOKEN="$(${sableNpmToken}/bin/sable-npm-token 2>/dev/null)"
         '';
       };
     })

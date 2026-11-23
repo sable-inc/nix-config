@@ -307,8 +307,16 @@ fi
 if [ "$technical" = 1 ]; then
 echo "== GitHub + npm"
 check "gh auth status" "gh auth login --web" gh auth status
-check "gh token can read packages" "gh auth refresh -s read:packages" sh -c "gh auth status 2>&1 | grep -q read:packages"
-check "NPM_TOKEN set (value not shown)" "open a new terminal; the profile exports it from gh auth token" test -n "${NPM_TOKEN:-}"
+if [ "$profile" = trial ] && [ "$trial_type" = ds ]; then
+  # A DS slot reads @sable-inc packages with the Iru read:packages token, not its repo-only gh token.
+  pkg_paths_ok() { local f; while IFS= read -r f; do [ -f "$f" ] && sable_bunfig_py get "$f" >/dev/null || return 1; done < <(bunfig_paths); }
+  check "@sable-inc scope at every bunfig path bun reads (value not shown)" "run sable-setup (copies the Iru scope to ~/.config/.bunfig.toml and \$XDG_CONFIG_HOME)" pkg_paths_ok
+  npm_is_pkg() { local t; t=$(sable_pkg_token) || return 1; [ "${NPM_TOKEN:-}" = "$t" ]; }
+  check "NPM_TOKEN is the package token (value not shown)" "open a new terminal; the trial profile exports it from the @sable-inc bunfig scope" npm_is_pkg
+else
+  check "gh token can read packages" "gh auth refresh -s read:packages" sh -c "gh auth status 2>&1 | grep -q read:packages"
+  check "NPM_TOKEN set (value not shown)" "open a new terminal; the profile exports it from gh auth token" test -n "${NPM_TOKEN:-}"
+fi
 check "@sable-inc registry in ~/.npmrc" "npm config set @sable-inc:registry https://npm.pkg.github.com" grep -q '@sable-inc:registry' "$HOME/.npmrc"
 # shellcheck disable=SC2016 # matches the literal ${NPM_TOKEN} reference npm expands at run time
 check "npm auth reads NPM_TOKEN" "npm config set '//npm.pkg.github.com/:_authToken' '\${NPM_TOKEN}'" grep -q 'npm.pkg.github.com/:_authToken=${NPM_TOKEN}' "$HOME/.npmrc"

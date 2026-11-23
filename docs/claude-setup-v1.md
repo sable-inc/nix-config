@@ -87,6 +87,10 @@ registry from `~/.bunfig.toml` (mode `600`), which it prefers over `~/.npmrc`:
 The token is a GitHub classic token with only `read:packages`. On the Onboarding box it is
 named `github-trial-packages-token`. Iru writes `~/.bunfig.toml` from `mdm/iru-trial-packages.sh`;
 the Mac never reads the box, and the token is never committed. The slot's `gh auth token` is not used.
+Bun reads `$XDG_CONFIG_HOME/.bunfig.toml` instead of `~/.bunfig.toml` when `XDG_CONFIG_HOME` is set, so Iru writes
+both `~/.bunfig.toml` and `~/.config/.bunfig.toml`, and `sable-setup` copies the scope to every path bun may read.
+On a trial Mac `NPM_TOKEN` (which `~/.npmrc` refers to) is that package token when the slot has one, never the
+slot's repo-only `gh auth token`: otherwise `sable update` gets 403 on `@sable-inc/apps` (trial1, Nov 23 2026).
 
 Each DS Mac signs in once as that slot's own trial account (`trial@sable.ai` on
 `sable-trial`, `trial1@sable.ai` on `sable-trial1`), not as a separate admin account.

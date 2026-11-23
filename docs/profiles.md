@@ -61,7 +61,9 @@ in the file checks only the machine, apps and CLIs. Exit code is the number of F
 
 On an employee Mac, `@sable-inc` packages come from GitHub Packages. The profile exports
 `NPM_TOKEN="$(gh auth token)"`, and `~/.npmrc` refers to it. A DS trial does not use that
-token for the CLI; bun reads `~/.bunfig.toml` instead:
+token: on a trial Mac the profile exports `NPM_TOKEN` from the `@sable-inc` bunfig scope when the slot has
+one (DS, `sable-npm-token`), and bun reads that scope from every global bunfig path (`~/.bunfig.toml`,
+`~/.config/.bunfig.toml`, `$XDG_CONFIG_HOME/.bunfig.toml`). Employee Macs:
 
 ```sh
 gh auth refresh -s read:packages

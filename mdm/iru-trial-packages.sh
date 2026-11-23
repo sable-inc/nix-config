@@ -3,7 +3,7 @@
 # GitHub classic token with only the read:packages scope. On the Onboarding box the secret
 # is named github-trial-packages-token. Paste it into token= in the Iru item. The Mac never
 # reads the box, and this file in git stays empty. Never commit the token.
-# Writes ~/.bunfig.toml for the sable user (mode 600) only when TRIAL_TYPE=ds.
+# Writes ~/.bunfig.toml and ~/.config/.bunfig.toml for the sable user (mode 600) only when TRIAL_TYPE=ds.
 # Engineering and every other trial type get no token. bun prefers bunfig over ~/.npmrc.
 # Does not write a second copy of the token, and does not touch credentials.json.
 # Never copy ~/.config/sable/credentials.json from another machine.
@@ -26,13 +26,19 @@ if [ "$trial_type" != ds ]; then
   unset token
   exit 0
 fi
-bunfig="$home/.bunfig.toml"
 umask 077
-cat >"$bunfig" <<EOF
+# Bun reads $XDG_CONFIG_HOME/.bunfig.toml instead of ~/.bunfig.toml when XDG_CONFIG_HOME is set, so write both
+# (trial1 Nov 23 2026: a terminal with XDG_CONFIG_HOME missed ~/.bunfig.toml and got 403). sable-setup copies the
+# scope to any other path bun may read and keeps other Bun settings.
+[ -d "$home/.config" ] || { mkdir -p "$home/.config"; chown sable:staff "$home/.config"; chmod 700 "$home/.config"; }
+for bunfig in "$home/.bunfig.toml" "$home/.config/.bunfig.toml"; do
+  [ ! -L "$bunfig" ] || die "$bunfig is a symlink; refusing"
+  cat >"$bunfig" <<EOF
 [install.scopes]
 "@sable-inc" = { url = "https://npm.pkg.github.com", token = "${token}" }
 EOF
-chown sable:staff "$bunfig"
-chmod 600 "$bunfig"
+  chown sable:staff "$bunfig"
+  chmod 600 "$bunfig"
+  echo "wrote $bunfig (mode 600). The token was not printed."
+done
 unset token
-echo "wrote $bunfig (mode 600). The token was not printed."
