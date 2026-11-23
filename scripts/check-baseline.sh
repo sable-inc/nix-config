@@ -34,7 +34,9 @@ need "pstack checkout follows cursor/plugins (no pinned rev), fast-forward only,
 f=module/darwin/agents.nix
 ! grep -Eq "pstackRev|[0-9a-f]{40}" $f &&
 grep -q "launchd.daemons.sable-pstack-update" $f &&
-grep -q "StartCalendarInterval" $f &&
+tr -d "\n " <$f | grep -q "StartCalendarInterval=\[{Hour=4;Minute=15;}\]" &&
+grep -q -- "--unshallow" $f &&
+! grep -q -- "--depth" $f &&
 grep -q "merge -q --ff-only" $f &&
 grep -q "is-ancestor" $f &&
 ! grep -Eq "reset --hard|checkout -q --detach" $f'
@@ -47,6 +49,27 @@ need "weekly flake-update workflow opens a PR (never pushes to fleet) and runs c
 f=$(ls .github/workflows/flake-update.yml docs/flake-update.workflow.yml 2>/dev/null | head -1)
 grep -q "cron:" $f && grep -q "nix flake update" $f && grep -q "scripts/check-baseline.sh" $f &&
 grep -q "create-pull-request\|gh pr create" $f && ! grep -q ":fleet\|origin fleet" $f'
+need "pstack link_skills fails closed: linked only for a clean checkout of the trusted origin on origin default branch" bash -c '
+set -e
+t=$(mktemp -d); trap "rm -rf $t" EXIT
+f=module/darwin/agents.nix
+# the real function bodies from agents.nix, with /etc/codex and the repo URL redirected into $t
+{ echo "git=git; repo=$t/origin; dir=$t/co; ref=refs/remotes/origin/sable-default"
+  sed -n "/^    unlink_skills() {/,/^    }/p;/^    link_skills() {/,/^    }/p" $f | sed "s#/etc/codex#$t/etc#g"; } >$t/fn.sh
+grep -q "link_skills() {" $t/fn.sh && grep -q "unlink_skills() {" $t/fn.sh
+export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
+git init -q $t/origin; mkdir -p $t/origin/harness/pstack/claude-code/skills; : >$t/origin/harness/pstack/claude-code/skills/a
+git -C $t/origin add -A; git -C $t/origin commit -qm one
+git clone -q $t/origin $t/co; git -C $t/co fetch -q origin "+HEAD:refs/remotes/origin/sable-default"
+run() { rm -rf $t/etc; mkdir -p $t/etc; ( . $t/fn.sh; link_skills ) 2>/dev/null; }
+linked() { [ -L $t/etc/skills ]; }
+run; linked || { echo "clean trusted checkout was not linked"; exit 1; }
+echo x >$t/co/dirty; run; ! linked || { echo "dirty checkout linked"; exit 1; }
+rm $t/co/dirty
+git -C $t/co remote set-url origin https://example.com/evil.git; run; ! linked || { echo "wrong origin linked"; exit 1; }
+git -C $t/co remote set-url origin $t/origin
+git -C $t/co -c user.name=t -c user.email=t@t commit -q --allow-empty -m local; run; ! linked || { echo "local commit off origin branch linked"; exit 1; }
+git -C $t/co reset -q --hard HEAD~1; run; linked || { echo "not relinked after recovery"; exit 1; }'
 need "Claude Code and Codex are user-owned installs, not nix packages (so they can self-update)" sh -c '
 ! grep -Eq "claude-code.enable|codex.enable" module/shared/home-manager.nix &&
 grep -q "claude.ai/install.sh" module/darwin/bin/sable-setup &&

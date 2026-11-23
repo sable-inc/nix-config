@@ -22,30 +22,53 @@ let
     git=/usr/bin/git
     repo="${pstackRepo}"
     dir="${pstackDir}"
+    ref=refs/remotes/origin/sable-default
+    unlink_skills() {
+      if [ -L /etc/codex/skills ]; then /bin/rm -f /etc/codex/skills; fi
+      echo "warning: pstack checkout is not trusted ($1), so /etc/codex/skills is not linked" >&2
+    }
+    # Fail closed: link Codex skills only for a clean checkout of the cursor/plugins origin whose HEAD is
+    # on (reachable from) the default branch last fetched from that origin. Anything else removes the link.
     link_skills() {
-      if [ -d "$dir/harness/pstack/claude-code/skills" ]; then
-        /bin/mkdir -p /etc/codex
-        /bin/ln -sfn "$dir/harness/pstack/claude-code/skills" /etc/codex/skills
-      else
-        if [ -L /etc/codex/skills ]; then /bin/rm -f /etc/codex/skills; fi
-        echo "warning: no pstack checkout, so /etc/codex/skills is not linked" >&2
-      fi
+      if [ ! -d "$dir/.git" ]; then unlink_skills "no checkout"; return; fi
+      if [ "$($git -C "$dir" remote get-url origin 2>/dev/null)" != "$repo" ]; then unlink_skills "origin is not $repo"; return; fi
+      if ! $git -C "$dir" rev-parse -q --verify "$ref" >/dev/null; then unlink_skills "default branch never fetched"; return; fi
+      if ! $git -C "$dir" merge-base --is-ancestor HEAD "$ref" 2>/dev/null; then unlink_skills "HEAD is not on origin's default branch"; return; fi
+      if [ -n "$($git -C "$dir" status --porcelain 2>/dev/null)" ]; then unlink_skills "local modifications"; return; fi
+      if [ ! -d "$dir/harness/pstack/claude-code/skills" ]; then unlink_skills "skills directory missing"; return; fi
+      /bin/mkdir -p /etc/codex
+      /bin/ln -sfn "$dir/harness/pstack/claude-code/skills" /etc/codex/skills
     }
     if [ -d "$dir/.git" ]; then
       # Checkouts made before this change have no origin remote; add it so they can follow the default branch.
       $git -C "$dir" remote get-url origin >/dev/null 2>&1 || $git -C "$dir" remote add origin "$repo"
+      $git -C "$dir" config core.fileMode false
       if [ "$($git -C "$dir" remote get-url origin 2>/dev/null)" != "$repo" ]; then
-        echo "warning: pstack checkout origin is not $repo, leaving it as is" >&2
-      elif $git -C "$dir" fetch -q --depth 200 origin HEAD 2>/dev/null \
-        && $git -C "$dir" merge-base --is-ancestor HEAD FETCH_HEAD 2>/dev/null; then
-        $git -C "$dir" merge -q --ff-only FETCH_HEAD || echo "warning: couldn't fast-forward pstack, keeping the current checkout" >&2
-        /bin/chmod -R go-w "$dir"; /bin/chmod -R a+rX "$dir"
+        echo "warning: pstack checkout origin is not $repo, not updating it" >&2
       else
-        echo "warning: pstack update is not a fast-forward from $repo (or fetch failed), keeping the current checkout" >&2
+        # Full history of the default branch (small repo): a shallow checkout is deepened first so the
+        # ancestry check can't stall on a shallow boundary.
+        if [ "$($git -C "$dir" rev-parse --is-shallow-repository 2>/dev/null)" = true ]; then
+          $git -C "$dir" fetch -q --no-tags --unshallow origin "+HEAD:$ref" 2>/dev/null \
+            || $git -C "$dir" fetch -q --no-tags origin "+HEAD:$ref" 2>/dev/null \
+            || echo "warning: couldn't fetch pstack" >&2
+        else
+          $git -C "$dir" fetch -q --no-tags origin "+HEAD:$ref" 2>/dev/null || echo "warning: couldn't fetch pstack" >&2
+        fi
+        if $git -C "$dir" rev-parse -q --verify "$ref" >/dev/null && $git -C "$dir" merge-base --is-ancestor HEAD "$ref" 2>/dev/null; then
+          if [ -z "$($git -C "$dir" status --porcelain 2>/dev/null)" ]; then
+            $git -C "$dir" merge -q --ff-only "$ref" || echo "warning: couldn't fast-forward pstack, keeping the current checkout" >&2
+          fi
+          /bin/chmod -R go-w "$dir"; /bin/chmod -R a+rX "$dir"
+        else
+          echo "warning: pstack HEAD is not an ancestor of origin's default branch (or fetch failed), keeping the current checkout" >&2
+        fi
       fi
     else
       tmp="$(/usr/bin/mktemp -d)"
-      if $git clone -q --depth 200 "$repo" "$tmp/c" 2>/dev/null; then
+      if $git clone -q "$repo" "$tmp/c" 2>/dev/null \
+        && $git -C "$tmp/c" fetch -q --no-tags origin "+HEAD:$ref" 2>/dev/null; then
+        $git -C "$tmp/c" config core.fileMode false
         /bin/mkdir -p "$(dirname "$dir")"
         /bin/rm -rf "$dir"
         /bin/mv "$tmp/c" "$dir" && /bin/chmod -R go-w "$dir" && /bin/chmod -R a+rX "$dir"
