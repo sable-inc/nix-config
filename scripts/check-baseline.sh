@@ -52,6 +52,9 @@ grep -q "create-pull-request\|gh pr create" $f && ! grep -q ":fleet\|origin flee
 need "pstack update (root script): no repo-local execution, ownership/permission/config trust checks re-clone, fail-closed linking" bash -c '
 set -e
 umask 022
+# host system/global git config must not leak into any assertion in this block
+export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
+unset GIT_CONFIG_COUNT GIT_CONFIG_PARAMETERS GIT_DIR GIT_WORK_TREE
 t=$(mktemp -d); trap "rm -rf $t" EXIT
 f=module/darwin/agents.nix
 me=$(id -un); other=$(awk -F: -v me="$me" "\$1!=me && \$1!=\"\"{print \$1; exit}" /etc/passwd)
@@ -80,7 +83,7 @@ head_is && linked || { echo "did not update/link with a planted hook"; exit 1; }
 # 2. planted core.fsmonitor / core.hooksPath in .git/config must not run; untrusted config means re-clone
 git -C $t/Sable/co config core.fsmonitor "touch $t/fsmon-ran"; git -C $t/Sable/co config core.hooksPath $t/Sable/co/.git/hooks
 bump c; upd; [ ! -e $t/fsmon-ran ] && [ ! -e $t/hook-ran ] || { echo "repo-local command ran"; exit 1; }
-[ -z "$(git -C $t/Sable/co config --get core.fsmonitor || true)" ] && head_is && linked || { echo "poisoned config was not re-cloned"; exit 1; }
+[ -z "$(git config --file $t/Sable/co/.git/config --get core.fsmonitor || true)" ] && head_is && linked || { echo "poisoned config was not re-cloned"; exit 1; }
 # 3. a file not owned by root (simulated: run the variant whose trusted owner is another user) triggers re-clone, and fails closed
 echo junk >$t/Sable/co/junk; rm -f $t/etc/skills
 if [ -n "$other" ]; then upd "$other"; [ ! -e $t/Sable/co/junk ] || { echo "foreign-owned checkout was kept"; exit 1; }; ! linked || { echo "foreign-owned checkout was linked"; exit 1; }; fi
