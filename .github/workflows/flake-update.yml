@@ -1,0 +1,32 @@
+name: flake-update
+# Base nix CLI tools can't update in place, so refresh flake.lock weekly and open a PR.
+# This never touches the fleet branch: a person merges the PR and releases separately.
+on:
+  schedule:
+    - cron: "0 13 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+      - run: nix flake update
+      - run: scripts/check-baseline.sh
+      - name: Open PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet flake.lock; then echo "flake.lock already current"; exit 0; fi
+          branch="auto/flake-update-$(date +%Y%m%d)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git commit -am "flake.lock: weekly update"
+          git push origin "$branch"
+          gh pr create --base main --head "$branch" --title "flake.lock: weekly update" \
+            --body "Automated weekly nix flake update. check-baseline passed. Merging does not change any Mac; releasing to fleet is a separate step that needs Matthew's OK."

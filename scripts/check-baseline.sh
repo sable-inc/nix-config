@@ -21,26 +21,32 @@ assert len(p) == 1
 e = {s["BundleIdentifier"]: s for s in p[0]["NotificationSettings"]}
 for b in ("com.tinyspeck.slackmacgap", "com.stablyai.orca"):
     assert e[b]["NotificationsEnabled"] is True and e[b]["AlertType"] in (1, 2)'
-need "Claude managed settings pin the plugin marketplaces (plugin autoUpdate off keeps the SHA pins) and never disable Claude Code self-update" py '
-import json, re
+need "Claude managed settings: plugin marketplaces follow the default branch (autoUpdate on, no ref pin) and never disable Claude Code self-update" py '
+import json
 d = json.load(open("module/darwin/config/claude-managed-settings.json"))
 m = d["extraKnownMarketplaces"]
-sha = re.compile(r"^[0-9a-f]{40}$")
-for name, repo, ref in (
-    ("cursor-plugins", "cursor/plugins", "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"),
-    ("openai-codex", "openai/codex-plugin-cc", "db52e28f4d9ded852ab3942cea316258ae4ef346"),
-):
-    src = m[name]["source"]
-    assert src == {"source": "github", "repo": repo, "ref": ref}
-    assert sha.match(src["ref"])
-    assert m[name]["autoUpdate"] is False
+for name, repo in (("cursor-plugins", "cursor/plugins"), ("openai-codex", "openai/codex-plugin-cc")):
+    assert m[name]["source"] == {"source": "github", "repo": repo}, "no ref/sha pin allowed"
+    assert m[name]["autoUpdate"] is True
 assert d["enabledPlugins"] == {"pstack@cursor-plugins": True, "codex@openai-codex": True}
-assert set(d) == {"extraKnownMarketplaces", "enabledPlugins"}, "managed settings may only pin plugins: no env/autoUpdatesChannel/DISABLE_*"'
-need "agents.nix is imported and installs managed settings + /etc/codex/skills" sh -c '
-grep -q "./agents.nix" module/darwin/default.nix &&
-grep -q "ClaudeCode/managed-settings.json" module/darwin/agents.nix &&
-grep -q "/etc/codex/skills" module/darwin/agents.nix &&
-grep -Eq "pstackRev = \"[0-9a-f]{40}\"" module/darwin/agents.nix'
+assert set(d) == {"extraKnownMarketplaces", "enabledPlugins"}, "managed settings may only set plugins: no env/autoUpdatesChannel/DISABLE_*"'
+need "pstack checkout follows cursor/plugins (no pinned rev), fast-forward only, updated daily by launchd and at activation" sh -c '
+f=module/darwin/agents.nix
+! grep -Eq "pstackRev|[0-9a-f]{40}" $f &&
+grep -q "launchd.daemons.sable-pstack-update" $f &&
+grep -q "StartCalendarInterval" $f &&
+grep -q "merge -q --ff-only" $f &&
+grep -q "is-ancestor" $f &&
+! grep -Eq "reset --hard|checkout -q --detach" $f'
+need "self-updating apps: casks for Cursor/Claude/ChatGPT/Devin, Orca installs from latest release, no greedy or version pin" sh -c '
+grep -q "\"cursor\"" module/darwin/default.nix &&
+grep -q "devin-desktop" module/darwin/default.nix &&
+grep -q "releases/latest/download" module/darwin/orca.nix &&
+! grep -Eq "greedy|HOMEBREW_NO_AUTO_UPDATE" module/darwin/default.nix'
+need "weekly flake-update workflow opens a PR (never pushes to fleet) and runs check-baseline" sh -c '
+f=.github/workflows/flake-update.yml
+grep -q "cron:" $f && grep -q "nix flake update" $f && grep -q "scripts/check-baseline.sh" $f &&
+grep -q "create-pull-request\|gh pr create" $f && ! grep -q ":fleet\|origin fleet" $f'
 need "Claude Code and Codex are user-owned installs, not nix packages (so they can self-update)" sh -c '
 ! grep -Eq "claude-code.enable|codex.enable" module/shared/home-manager.nix &&
 grep -q "claude.ai/install.sh" module/darwin/bin/sable-setup &&
