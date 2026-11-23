@@ -164,7 +164,7 @@ For each Mac:
    page, turn on **Orca**. When macOS asks, click **Quit & Reopen**. Trial cleanups don't
    undo this, so it only has to be done again after an erase. The Iru item "ONB computer-use check (read-only)"
    runs daily and only prints what it reads. Its per-device run output is in Iru (the item's
-   status, one row per Mac, with the script output in its log; API: `GET /library/library-items/<id>/status`),
+   status, one row per Mac, with the script output in its log; API: `GET https://sable.api.iru.com/api/v1/library/library-items/<id>/status`),
    and the Onboarding bot reads that output the night before each trial; if a switch is off,
    the host turns it on the trial morning before the trialer starts
 
