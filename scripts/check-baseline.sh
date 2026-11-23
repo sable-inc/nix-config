@@ -49,27 +49,59 @@ need "weekly flake-update workflow opens a PR (never pushes to fleet) and runs c
 f=$(ls .github/workflows/flake-update.yml docs/flake-update.workflow.yml 2>/dev/null | head -1)
 grep -q "cron:" $f && grep -q "nix flake update" $f && grep -q "scripts/check-baseline.sh" $f &&
 grep -q "create-pull-request\|gh pr create" $f && ! grep -q ":fleet\|origin fleet" $f'
-need "pstack link_skills fails closed: linked only for a clean checkout of the trusted origin on origin default branch" bash -c '
+need "pstack update (root script): no repo-local execution, ownership/permission/config trust checks re-clone, fail-closed linking" bash -c '
 set -e
+umask 022
 t=$(mktemp -d); trap "rm -rf $t" EXIT
 f=module/darwin/agents.nix
-# the real function bodies from agents.nix, with /etc/codex and the repo URL redirected into $t
-{ echo "git=git; repo=$t/origin; dir=$t/co; ref=refs/remotes/origin/sable-default"
-  sed -n "/^    unlink_skills() {/,/^    }/p;/^    link_skills() {/,/^    }/p" $f | sed "s#/etc/codex#$t/etc#g"; } >$t/fn.sh
-grep -q "link_skills() {" $t/fn.sh && grep -q "unlink_skills() {" $t/fn.sh
+me=$(id -un); other=$(awk -F: -v me="$me" "\$1!=me && \$1!=\"\"{print \$1; exit}" /etc/passwd)
+# The real script text from agents.nix, run as this user in a sandbox. Substitutions (the only differences from a
+# real run): /etc/codex, the repo URL, the checkout path, HOME and the /Library stop point move into $t; "root" becomes
+# the current user (the test cannot chown to root); and protocol.file.allow=always so a local repo can stand in for
+# GitHub. mk <owner> builds a variant: a different <owner> simulates a checkout owned by a non-root user.
+mk() { sed -n "/writeShellScript \"sable-pstack-update\"/,/^  '"'"''"'"';/p" $f | sed "1d;\$d" \
+  | sed "s#\${pstackRepo}#$t/origin#; s#\${pstackDir}#$t/Sable/co#; s#/etc/codex#$t/etc#g; s#HOME=/var/root#HOME=$t#; s#^    stop=/Library#    stop=$t#; s#^    owner=root#    owner=$me#; s#^    tree_owner=root#    tree_owner=$1#; s#protocol.file.allow=never#protocol.file.allow=always#" >$t/upd-$1.sh; }
+mk "$me"; mk "$other"
+grep -q "sable-pstack-update" $f && grep -q "tree_owner=$me" $t/upd-$me.sh && grep -q "unlink_skills()" $t/upd-$me.sh
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
+mkdir $t/etc
+O="git -C $t/origin"
 git init -q $t/origin; mkdir -p $t/origin/harness/pstack/claude-code/skills; : >$t/origin/harness/pstack/claude-code/skills/a
-git -C $t/origin add -A; git -C $t/origin commit -qm one
-git clone -q $t/origin $t/co; git -C $t/co fetch -q origin "+HEAD:refs/remotes/origin/sable-default"
-run() { rm -rf $t/etc; mkdir -p $t/etc; ( . $t/fn.sh; link_skills ) 2>/dev/null; }
+$O add -A; $O commit -qm one
+upd() { bash $t/upd-${1:-$me}.sh 2>$t/err || { cat $t/err; return 1; }; }
 linked() { [ -L $t/etc/skills ]; }
-run; linked || { echo "clean trusted checkout was not linked"; exit 1; }
-echo x >$t/co/dirty; run; ! linked || { echo "dirty checkout linked"; exit 1; }
-rm $t/co/dirty
-git -C $t/co remote set-url origin https://example.com/evil.git; run; ! linked || { echo "wrong origin linked"; exit 1; }
-git -C $t/co remote set-url origin $t/origin
-git -C $t/co -c user.name=t -c user.email=t@t commit -q --allow-empty -m local; run; ! linked || { echo "local commit off origin branch linked"; exit 1; }
-git -C $t/co reset -q --hard HEAD~1; run; linked || { echo "not relinked after recovery"; exit 1; }'
+head_is() { [ "$(git -C $t/Sable/co rev-parse HEAD)" = "$($O rev-parse HEAD)" ]; }
+bump() { : >$t/origin/harness/pstack/claude-code/skills/$1; $O add -A; $O commit -qm "$1"; }
+upd; linked && head_is || { echo "fresh clone was not made and linked"; exit 1; }
+# 1. planted post-merge hook must not run on update; still updates and links
+printf "#!/bin/sh\ntouch $t/hook-ran\n" >$t/Sable/co/.git/hooks/post-merge; chmod +x $t/Sable/co/.git/hooks/post-merge
+bump b; upd; [ ! -e $t/hook-ran ] || { echo "post-merge hook ran"; exit 1; }
+head_is && linked || { echo "did not update/link with a planted hook"; exit 1; }
+# 2. planted core.fsmonitor / core.hooksPath in .git/config must not run; untrusted config means re-clone
+git -C $t/Sable/co config core.fsmonitor "touch $t/fsmon-ran"; git -C $t/Sable/co config core.hooksPath $t/Sable/co/.git/hooks
+bump c; upd; [ ! -e $t/fsmon-ran ] && [ ! -e $t/hook-ran ] || { echo "repo-local command ran"; exit 1; }
+[ -z "$(git -C $t/Sable/co config --get core.fsmonitor || true)" ] && head_is && linked || { echo "poisoned config was not re-cloned"; exit 1; }
+# 3. a file not owned by root (simulated: run the variant whose trusted owner is another user) triggers re-clone, and fails closed
+echo junk >$t/Sable/co/junk; rm -f $t/etc/skills
+if [ -n "$other" ]; then upd "$other"; [ ! -e $t/Sable/co/junk ] || { echo "foreign-owned checkout was kept"; exit 1; }; ! linked || { echo "foreign-owned checkout was linked"; exit 1; }; fi
+upd; linked || { echo "not relinked after re-clone"; exit 1; }
+# 4. a group/other-writable file triggers re-clone
+echo junk >$t/Sable/co/junk; chmod go+w $t/Sable/co/harness/pstack/claude-code/skills/a; upd
+[ ! -e $t/Sable/co/junk ] && linked || { echo "writable file did not trigger re-clone"; exit 1; }
+# 5. a group-writable parent directory: nothing runs in the checkout and the link is removed
+echo junk >$t/Sable/co/junk; chmod 775 $t/Sable; upd; chmod 755 $t/Sable
+[ -e $t/Sable/co/junk ] && ! linked || { echo "untrusted parent was not refused"; exit 1; }
+rm $t/Sable/co/junk; upd; linked || { echo "not relinked"; exit 1; }
+# 6. fail-closed linking: dirty tree, wrong origin, local commit off the default branch
+echo x >$t/Sable/co/dirty; upd; ! linked || { echo "dirty checkout linked"; exit 1; }
+rm $t/Sable/co/dirty
+git -C $t/Sable/co remote set-url origin https://example.com/evil.git; upd; ! linked || { echo "wrong origin linked"; exit 1; }
+git -C $t/Sable/co remote set-url origin $t/origin
+git -C $t/Sable/co commit -q --allow-empty -m local; upd; ! linked || { echo "local commit linked"; exit 1; }
+git -C $t/Sable/co reset -q --hard HEAD~1; upd; linked || { echo "not relinked after recovery"; exit 1; }
+# the script must never run git before the trust check, and never pass a pin
+grep -q "git() { /usr/bin/git -c core.hooksPath=/dev/null -c core.fsmonitor=false" $f
+! grep -Eq "pstackRev|reset --hard|--depth" $f'
 need "Claude Code and Codex are user-owned installs, not nix packages (so they can self-update)" sh -c '
 ! grep -Eq "claude-code.enable|codex.enable" module/shared/home-manager.nix &&
 grep -q "claude.ai/install.sh" module/darwin/bin/sable-setup &&
