@@ -5,7 +5,7 @@
 # reads the box, and this file in git stays empty. Never commit the token.
 # Writes ~/.bunfig.toml and ~/.config/.bunfig.toml for the sable user (mode 600) only when TRIAL_TYPE=ds.
 # Engineering and every other trial type get no token. bun prefers bunfig over ~/.npmrc.
-# Does not write a second copy of the token, and does not touch credentials.json.
+# Writes the token only into those two bunfig files, and does not touch credentials.json.
 # Never copy ~/.config/sable/credentials.json from another machine.
 set -euo pipefail
 token=""
