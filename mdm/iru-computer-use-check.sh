@@ -1,5 +1,5 @@
 #!/bin/bash
-# Iru Custom Script "ONB computer-use check (read-only)", run once (docs/iru.md).
+# Iru Custom Script "ONB computer-use check (read-only)", run daily (docs/iru.md).
 # Read-only: shows whether mdm/computer-use-pppc.mobileconfig reached this Mac (installed profile and
 # TCC MDM overrides), the user's Screen Recording / Accessibility state in TCC, and whether each of the
 # seven profile ids still satisfies its designated requirement. Changes nothing. Never prints a secret.
@@ -28,8 +28,9 @@ mo="/Library/Application Support/com.apple.TCC/MDMOverrides.plist"
 if [ -r "$mo" ]; then
   for e in "${apps[@]}"; do
     id=${e%%|*}
-    /usr/bin/plutil -extract "$id" xml1 -o - "$mo" >/dev/null 2>&1 || { echo "  $id: none"; continue; }
-    svcs=$(/usr/bin/plutil -extract "$id" xml1 -o - "$mo" | /usr/bin/grep -oE 'kTCCService[A-Za-z]+' | /usr/bin/sort -u | /usr/bin/tr '\n' ' ')
+    key=${id//./\\.}  # plutil keypaths split on dots, so escape the dots in the bundle id
+    /usr/bin/plutil -extract "$key" xml1 -o - "$mo" >/dev/null 2>&1 || { echo "  $id: none"; continue; }
+    svcs=$(/usr/bin/plutil -extract "$key" xml1 -o - "$mo" | /usr/bin/grep -oE 'kTCCService[A-Za-z]+' | /usr/bin/sort -u | /usr/bin/tr '\n' ' ')
     echo "  $id: $svcs"
   done
 else

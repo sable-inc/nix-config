@@ -13,6 +13,14 @@ need() { # need <description> <command...>; a failure prints the command's outpu
 }
 py() { python3 -I -c "$@"; }
 
+need "computer-use check script: every plutil -extract keypath escapes the dots in the bundle id" py '
+import re
+t = open("mdm/iru-computer-use-check.sh").read()
+calls = re.findall(r"plutil -extract (\S+)", t)
+assert len(calls) == 2, calls
+assert all(c == "\"$key\"" for c in calls), calls
+assert "key=${id//./\\\\.}" in t
+'
 need "computer-use PPPC profile: Orca, Orca Computer Use, Claude and ChatGPT get Accessibility + PostEvent + Automation; ScreenCapture is Orca-only and only user-approvable; each code requirement is that app's Developer ID team" py '
 import plistlib, re
 d = plistlib.load(open("mdm/computer-use-pppc.mobileconfig", "rb"))
