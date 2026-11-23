@@ -157,10 +157,10 @@ For each Mac:
 6. **Trial Mac only: computer use, once per Mac.** Iru's "Sable: Computer use (Orca, Claude,
    ChatGPT)" profile already allows Accessibility and Automation for Orca, Claude and ChatGPT.
    macOS doesn't let any MDM turn on Screen Recording or system audio recording, so someone
-   at the Mac does it once. Log in as `sable`, open **System Settings > Privacy & Security >
-   Screen & System Audio Recording**, and turn on **Orca**, **Orca Computer Use**, **Claude**
-   and **ChatGPT** (use **+** to add any that are missing; Orca Computer Use is inside
-   Orca.app, Contents > Resources). Then, under **System Audio Recording Only** on the same
+   at the Mac does it once, for Orca only. Log in as `sable`, open **System Settings > Privacy & Security >
+   Screen & System Audio Recording**, and turn on **Orca** and **Orca Computer Use**
+   (use **+** to add any that are missing; Orca Computer Use is inside
+   Orca.app, Contents > Resources). Leave Claude and ChatGPT off. Then, under **System Audio Recording Only** on the same
    page, turn on **Orca**. When macOS asks, click **Quit & Reopen**. Trial cleanups don't
    undo this, so it only has to be done again after an erase. The Onboarding bot checks it
    the night before each trial (Iru item "ONB computer-use check (read-only)"); if a switch is

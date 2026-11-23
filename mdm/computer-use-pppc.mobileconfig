@@ -2,11 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!-- Iru Custom Profile "Sable: Computer use (Orca, Claude, ChatGPT)" (docs/iru.md). Sable Trial and
      Sable Trial (idle). Needs a supervised Mac (Automated Device Enrollment). Accessibility,
-     PostEvent and Automation of System Events and Finder are allowed outright. Screen Recording
-     (ScreenCapture, which also covers system audio) can't be allowed by any MDM: macOS only takes
-     Deny or AllowStandardUserToSetSystemService, so the person at the Mac turns it on once per Mac
-     (docs/new-mac-runbook.md, Part F). forceBypassScreenCaptureAlert stops the monthly re-prompt
-     once it's on. Code requirements are each app's designated requirement (codesign -dr -,
+     PostEvent and Automation of System Events and Finder are allowed outright for all seven
+     ids. Screen Recording (ScreenCapture, which also covers system audio) can't be allowed by any
+     MDM: macOS only takes Deny or AllowStandardUserToSetSystemService. This profile sets
+     AllowStandardUserToSetSystemService for Orca and Orca Computer Use only, so the person at the
+     Mac turns those on once per Mac (docs/new-mac-runbook.md, Part F). Claude and ChatGPT have no
+     ScreenCapture entry. forceBypassScreenCaptureAlert stops the monthly re-prompt once it's on.
+     Code requirements are each app's designated requirement (codesign -dr -,
      Orca 1.4.271, Claude 6.28899.6, ChatGPT 26.1117.41037); a check is mdm/iru-computer-use-check.sh. -->
 <plist version="1.0">
 <dict>
@@ -254,76 +256,6 @@
 						<false/>
 						<key>Comment</key>
 						<string>Orca Computer Use (helper inside Orca.app)</string>
-						<key>Authorization</key>
-						<string>AllowStandardUserToSetSystemService</string>
-					</dict>
-					<dict>
-						<key>Identifier</key>
-						<string>com.anthropic.claudefordesktop</string>
-						<key>IdentifierType</key>
-						<string>bundleID</string>
-						<key>CodeRequirement</key>
-						<string>identifier "com.anthropic.claudefordesktop" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = "Q6L2SF6YDW"</string>
-						<key>StaticCode</key>
-						<false/>
-						<key>Comment</key>
-						<string>Claude desktop (its app-cu-helper inherits Claude's grants)</string>
-						<key>Authorization</key>
-						<string>AllowStandardUserToSetSystemService</string>
-					</dict>
-					<dict>
-						<key>Identifier</key>
-						<string>com.openai.codex</string>
-						<key>IdentifierType</key>
-						<string>bundleID</string>
-						<key>CodeRequirement</key>
-						<string>identifier "com.openai.codex" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = "2DC432GLL2"</string>
-						<key>StaticCode</key>
-						<false/>
-						<key>Comment</key>
-						<string>ChatGPT desktop (ChatGPT.app, current build)</string>
-						<key>Authorization</key>
-						<string>AllowStandardUserToSetSystemService</string>
-					</dict>
-					<dict>
-						<key>Identifier</key>
-						<string>com.openai.chat</string>
-						<key>IdentifierType</key>
-						<string>bundleID</string>
-						<key>CodeRequirement</key>
-						<string>identifier "com.openai.chat" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = "2DC432GLL2"</string>
-						<key>StaticCode</key>
-						<false/>
-						<key>Comment</key>
-						<string>ChatGPT desktop (older ChatGPT.app build)</string>
-						<key>Authorization</key>
-						<string>AllowStandardUserToSetSystemService</string>
-					</dict>
-					<dict>
-						<key>Identifier</key>
-						<string>com.openai.sky.CUAService</string>
-						<key>IdentifierType</key>
-						<string>bundleID</string>
-						<key>CodeRequirement</key>
-						<string>identifier "com.openai.sky.CUAService" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = "2DC432GLL2"</string>
-						<key>StaticCode</key>
-						<false/>
-						<key>Comment</key>
-						<string>ChatGPT Codex Computer Use service</string>
-						<key>Authorization</key>
-						<string>AllowStandardUserToSetSystemService</string>
-					</dict>
-					<dict>
-						<key>Identifier</key>
-						<string>com.openai.sky.CUAService.cli</string>
-						<key>IdentifierType</key>
-						<string>bundleID</string>
-						<key>CodeRequirement</key>
-						<string>identifier "com.openai.sky.CUAService.cli" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = "2DC432GLL2"</string>
-						<key>StaticCode</key>
-						<false/>
-						<key>Comment</key>
-						<string>ChatGPT Codex Computer Use client</string>
 						<key>Authorization</key>
 						<string>AllowStandardUserToSetSystemService</string>
 					</dict>

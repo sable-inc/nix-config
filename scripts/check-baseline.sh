@@ -13,7 +13,7 @@ need() { # need <description> <command...>; a failure prints the command's outpu
 }
 py() { python3 -I -c "$@"; }
 
-need "computer-use PPPC profile: Orca, Orca Computer Use, Claude and ChatGPT get Accessibility + PostEvent + Automation; ScreenCapture only user-approvable; each code requirement is that app's Developer ID team" py '
+need "computer-use PPPC profile: Orca, Orca Computer Use, Claude and ChatGPT get Accessibility + PostEvent + Automation; ScreenCapture is Orca-only and only user-approvable; each code requirement is that app's Developer ID team" py '
 import plistlib, re
 d = plistlib.load(open("mdm/computer-use-pppc.mobileconfig", "rb"))
 assert d["PayloadScope"] == "System" and d["PayloadType"] == "Configuration"
@@ -24,8 +24,12 @@ assert set(s) == {"Accessibility", "PostEvent", "ScreenCapture", "AppleEvents"},
 team = {"com.stablyai.orca": "6CX3WHS9HZ", "com.stablyai.orca.computer-use": "6CX3WHS9HZ",
         "com.anthropic.claudefordesktop": "Q6L2SF6YDW", "com.openai.codex": "2DC432GLL2", "com.openai.chat": "2DC432GLL2",
         "com.openai.sky.CUAService": "2DC432GLL2", "com.openai.sky.CUAService.cli": "2DC432GLL2"}
-for name in ("Accessibility", "PostEvent", "ScreenCapture"):
+orca = {"com.stablyai.orca", "com.stablyai.orca.computer-use"}
+for name in ("Accessibility", "PostEvent"):
     assert {e["Identifier"] for e in s[name]} == set(team), name
+sc = {e["Identifier"] for e in s["ScreenCapture"]}
+assert sc == orca, sc
+assert not any(e["Identifier"] not in orca for e in s["ScreenCapture"]), "ScreenCapture must not list a non-Orca id"
 for name, entries in s.items():
     for e in entries:
         t = team[e["Identifier"]]
