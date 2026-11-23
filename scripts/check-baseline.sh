@@ -305,11 +305,33 @@ grep -q "sable-npm-token 2>/dev/null" module/darwin/profile.nix
 ! grep -q "export NPM_TOKEN=\"\$(gh auth token" module/darwin/profile.nix
 grep -q "\.config/\.bunfig\.toml" mdm/iru-trial-packages.sh
 '
-need "Iru writes only ~/.bunfig.toml and ships no token" sh -c '
+need "Iru bunfig writer: runs as sable, merges only the scope (other Bun settings kept), 600, refuses symlinks (no root redirect)" bash -c '
+set -eu
+f=mdm/iru-trial-packages.sh
+grep -q "sudo -u sable -H /usr/bin/python3 -I -c \"\$merge_py\"" $f
+! grep -qE "cat >\"?\\\$bunfig" $f
+prog=$(sed -n "/^merge_py=/,/^os.replace/p" $f | sed -e "1s/^merge_py=.//" -e "\$ s/.\$//")
+h=$(mktemp -d)
+printf "%s\n" "[install]" "exact = true" "" "[install.scopes]" "\"@sable-inc\" = { url = \"x\", token = \"old\" }" "\"@other\" = \"y\"" > "$h/.bunfig.toml"
+printf "pkg-read" | python3 -I -c "$prog" "$h" .bunfig.toml
+printf "pkg-read" | python3 -I -c "$prog" "$h" .config/.bunfig.toml
+grep -q "exact = true" "$h/.bunfig.toml"; grep -q "@other" "$h/.bunfig.toml"
+for x in .bunfig.toml .config/.bunfig.toml; do
+  [ "$(grep -c "@sable-inc" "$h/$x")" = 1 ]; grep -q "token = \"pkg-read\"" "$h/$x"
+  [ "$(stat -c %a "$h/$x" 2>/dev/null || stat -f %Lp "$h/$x")" = 600 ]
+done
+mkdir "$h/away"; rm -rf "$h/.config"; ln -s "$h/away" "$h/.config"
+printf "pkg-read" | python3 -I -c "$prog" "$h" .config/.bunfig.toml 2>/dev/null && exit 1
+[ -z "$(ls -A "$h/away")" ]
+rm "$h/.config"; mkdir "$h/.config"; ln -s "$h/away/t" "$h/.config/.bunfig.toml"
+printf "pkg-read" | python3 -I -c "$prog" "$h" .config/.bunfig.toml 2>/dev/null && exit 1
+[ ! -e "$h/away/t" ]
+'
+need "Iru writes only the bunfig scope (both paths) and ships no token" sh -c '
 f=mdm/iru-trial-packages.sh
 grep -q "github-trial-packages-token" $f && grep -q "token=\"\"" $f &&
 grep -q "\[install.scopes\]" $f && grep -q "@sable-inc" $f &&
-grep -q "npm.pkg.github.com" $f && grep -q "chmod 600" $f &&
+grep -q "npm.pkg.github.com" $f && grep -q "0o600" $f &&
 grep -q "does not touch credentials.json" $f &&
 grep -q "TRIAL_TYPE" $f && grep -q "not ds" $f
 '
