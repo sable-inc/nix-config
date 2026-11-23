@@ -127,8 +127,10 @@ raise SystemExit(0 if isinstance(u, dict) and u.get("isSableAdmin") is True else
 # END sable_admin_check
 # DS package install. The read:packages token is a GitHub classic token. On the Onboarding
 # box it is named github-trial-packages-token. Iru pushes it (mdm/iru-trial-packages.sh);
-# this Mac never reads the box, and the token is never committed. bun reads it from
-# ~/.bunfig.toml (mode 600), not from ~/.npmrc.
+# this Mac never reads the box, and the token is never committed. Iru writes ~/.bunfig.toml (mode 600);
+# sync_bunfig_scope (sable-lib.sh) copies the scope to every global bunfig path bun may read
+# (~/.config/.bunfig.toml and $XDG_CONFIG_HOME/.bunfig.toml too), and NPM_TOKEN on a trial Mac is this
+# package token, so ~/.npmrc's ${NPM_TOKEN} never resolves to the slot's repo-only gh token.
 slot_email() { # sable-trial -> trial@sable.ai, sable-trial1 -> trial1@sable.ai
   local host slot
   host=$(scutil --get LocalHostName 2>/dev/null || true)
@@ -189,6 +191,7 @@ install_sable_cli() {
     return 0
   fi
   chmod 600 "$HOME/.bunfig.toml"
+  sync_bunfig_scope || echo "warning: could not copy the @sable-inc scope to every bunfig path (see sable-doctor)" >&2
   if bun add -g @sable-inc/toolbelt@^0.80.0 @sable-inc/e2e @sable-inc/wiki; then return 0; fi
   echo "warning: could not install @sable-inc/toolbelt, @sable-inc/e2e and @sable-inc/wiki" >&2
   return 0
@@ -198,25 +201,8 @@ remove_sable_cli() { # non-DS slots build the platform themselves: no binary, no
   if have bun; then bun remove -g @sable-inc/toolbelt @sable-inc/e2e @sable-inc/wiki >/dev/null 2>&1 || true; fi
   if have sable; then rm -f "$(command -v sable)"; fi
   rm -rf "${XDG_CONFIG_HOME:-$HOME/.config}/sable"
-  # Drop only the @sable-inc scope. Other Bun settings in the file stay.
-  if [ -f "$HOME/.bunfig.toml" ]; then
-    python3 -I - "$HOME/.bunfig.toml" <<'PY'
-import os, sys
-path = sys.argv[1]
-kept = []
-for line in open(path):
-    stripped = line.strip()
-    if stripped.startswith('"@sable-inc"') or stripped.startswith("'@sable-inc'") or stripped.startswith("@sable-inc"):
-        continue
-    kept.append(line)
-meaningful = [ln.strip() for ln in kept if ln.strip() and not ln.strip().startswith("#") and ln.strip() != "[install.scopes]"]
-if not meaningful:
-    os.remove(path)
-else:
-    open(path, "w").write("".join(kept))
-    os.chmod(path, 0o600)
-PY
-  fi
+  # Drop only the @sable-inc scope, at every bunfig path bun may read. Other Bun settings stay.
+  drop_bunfig_scope
   if have sable; then
     echo "warning: sable is still on PATH after uninstall; sable-doctor will fail this slot" >&2
   fi
@@ -377,7 +363,9 @@ if [ "$unattended" = 1 ]; then
   say "Unattended: sign-in report"
   if gh auth status >/dev/null 2>&1; then
     # Refresh Sable CLIs only where they already exist; this never decides who gets Sable access.
-    NPM_TOKEN="$(gh auth token 2>/dev/null)"; export NPM_TOKEN
+    # Trial: the package scope token when this slot has one (DS), never the slot's repo-only gh token.
+    if [ "$profile" = trial ]; then sync_bunfig_scope >/dev/null 2>&1 || true; fi
+    NPM_TOKEN="$(sable_npm_token "$profile")" || true; export NPM_TOKEN
     if have sable; then bun add -g @sable-inc/toolbelt@latest >/dev/null 2>&1 || { echo "install failed: @sable-inc/toolbelt" >&2; install_failed=1; }; fi
     if have sablebrowse; then npm install -g @sable-inc/sablebrowse@latest >/dev/null 2>&1 || { echo "install failed: @sable-inc/sablebrowse" >&2; install_failed=1; }; fi
     if have vercel; then npm install -g vercel@latest >/dev/null 2>&1 || { echo "install failed: vercel" >&2; install_failed=1; }; fi
@@ -496,17 +484,17 @@ fi
 # nix-config owns ~/.config/git/config, so the helper goes in ~/.gitconfig (not gh auth setup-git).
 git config --file "$HOME/.gitconfig" --replace-all credential.https://github.com.helper ""
 git config --file "$HOME/.gitconfig" --add credential.https://github.com.helper "!$(command -v gh) auth git-credential"
-NPM_TOKEN="$(gh auth token)"
+# Trial: NPM_TOKEN is the package scope token when this slot has one (DS), else gh. A DS slot's gh token is
+# repo-only, so ~/.npmrc's ${NPM_TOKEN} pointing at it 403'd bun and npm (trial1, Nov 23 2026).
+NPM_TOKEN="$(sable_npm_token "$profile")"
 export NPM_TOKEN
 
 say "Sable packages"
-# DS package installs use ~/.bunfig.toml (the Iru read:packages token). Do not also point
-# ~/.npmrc at this slot's gh token, or bun/npm can pick up the wrong credential.
-if [ "$profile" != trial ] || [ "$trial_type" != ds ]; then
-  npm config set @sable-inc:registry https://npm.pkg.github.com
-  # shellcheck disable=SC2016 # npm expands ${NPM_TOKEN} itself, so the token never lands in ~/.npmrc
-  npm config set '//npm.pkg.github.com/:_authToken' '${NPM_TOKEN}'
-fi
+# ~/.npmrc refers to ${NPM_TOKEN} (never a literal token), which is now the package token on a DS slot, so
+# npm/pnpm installs of @sable-inc packages (SableBrowse, deployments builds) and bun agree on one credential.
+npm config set @sable-inc:registry https://npm.pkg.github.com
+# shellcheck disable=SC2016 # npm expands ${NPM_TOKEN} itself, so the token never lands in ~/.npmrc
+npm config set '//npm.pkg.github.com/:_authToken' '${NPM_TOKEN}'
 # DS trials only. Engineering and every other type, including idle and unknown, get no CLI.
 # The install uses the package-read token, not NPM_TOKEN from the slot's gh auth token.
 # Employees install inside sable_stack.
