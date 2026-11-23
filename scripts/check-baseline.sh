@@ -326,11 +326,76 @@ bunfig_ready && exit 1
 printf "%s\n" "[install.scopes]" "\"@sable-inc\" = { url = \"https://npm.pkg.github.com\", token = \"read-packages\" }" > "$HOME/.bunfig.toml"
 bunfig_ready
 '
-need "Iru writes only ~/.bunfig.toml and ships no token" sh -c '
+need "package token: scope at every bunfig path bun reads, NPM_TOKEN is the package token on trial (not the slot gh token), drop keeps other settings" bash -c '
+set -eu
+. module/darwin/bin/sable-lib.sh
+HOME=$(mktemp -d); export HOME; XDG_CONFIG_HOME=$HOME/xdg; export XDG_CONFIG_HOME
+mkdir -p "$HOME/bin"; printf "#!/bin/sh\n[ \"\$1 \$2\" = \"auth token\" ] && echo slot-gh-token\n" > "$HOME/bin/gh"; chmod +x "$HOME/bin/gh"; PATH=$HOME/bin:$PATH
+# no scope yet: trial falls back to gh, sync reports no token
+[ "$(sable_npm_token trial)" = slot-gh-token ]
+sync_bunfig_scope && exit 1
+printf "%s\n" "[install]" "exact = true" "" "[install.scopes]" "\"@sable-inc\" = { url = \"https://npm.pkg.github.com\", token = \"<token>\" }" "\"@other\" = \"https://example.invalid\"" > "$HOME/.bunfig.toml"
+sable_pkg_token >/dev/null && exit 1   # a placeholder is not a token
+printf "%s\n" "[install]" "exact = true" "" "[install.scopes]" "\"@sable-inc\" = { url = \"https://npm.pkg.github.com\", token = \"pkg-read\" }" "\"@other\" = \"https://example.invalid\"" > "$HOME/.bunfig.toml"
+sync_bunfig_scope
+for f in "$HOME/.bunfig.toml" "$HOME/.config/.bunfig.toml" "$XDG_CONFIG_HOME/.bunfig.toml"; do
+  [ "$(sable_bunfig_py get "$f")" = pkg-read ] || { echo "no scope in $f"; exit 1; }
+  [ "$(stat -c %a "$f" 2>/dev/null || stat -f %Lp "$f")" = 600 ] || { echo "$f not 600"; exit 1; }
+  [ "$(grep -c "@sable-inc" "$f")" = 1 ] || { echo "duplicate scope in $f"; exit 1; }
+done
+grep -q "exact = true" "$HOME/.bunfig.toml" && grep -q "@other" "$HOME/.bunfig.toml"
+# only the XDG copy is left (what a terminal with XDG_CONFIG_HOME reads): still found
+rm "$HOME/.bunfig.toml" "$HOME/.config/.bunfig.toml"; [ "$(sable_pkg_token)" = pkg-read ]
+sync_bunfig_scope; [ "$(sable_bunfig_py get "$HOME/.bunfig.toml")" = pkg-read ]
+[ "$(sable_npm_token trial)" = pkg-read ]
+[ "$(sable_npm_token onboard)" = slot-gh-token ]
+# a symlinked bunfig is refused, not followed
+rm "$HOME/.config/.bunfig.toml"; ln -s "$HOME/elsewhere" "$HOME/.config/.bunfig.toml"
+sync_bunfig_scope && exit 1; [ ! -e "$HOME/elsewhere" ]; rm "$HOME/.config/.bunfig.toml"
+# drop removes the scope everywhere and keeps other Bun settings
+printf "%s\n" "[install]" "exact = true" "" "[install.scopes]" "\"@sable-inc\" = { url = \"https://npm.pkg.github.com\", token = \"pkg-read\" }" > "$HOME/.bunfig.toml"
+drop_bunfig_scope
+grep -q "@sable-inc" "$HOME/.bunfig.toml" && exit 1; grep -q "exact = true" "$HOME/.bunfig.toml"
+[ ! -e "$XDG_CONFIG_HOME/.bunfig.toml" ]
+sable_pkg_token >/dev/null && exit 1
+[ "$(sable_npm_token trial)" = slot-gh-token ]
+# callers: sable-setup and the trial shell take NPM_TOKEN from sable_npm_token, never straight from gh
+f=module/darwin/bin/sable-setup
+! grep -q "NPM_TOKEN=\"\$(gh auth token" $f
+[ "$(grep -c "NPM_TOKEN=\"\$(sable_npm_token \"\$profile\")\"" $f)" = 2 ]
+awk "/^install_sable_cli\\(\\)/,/^}/" $f | grep -q sync_bunfig_scope
+awk "/^remove_sable_cli\\(\\)/,/^}/" $f | grep -q drop_bunfig_scope
+grep -q "sable-npm-token 2>/dev/null" module/darwin/profile.nix
+! grep -q "export NPM_TOKEN=\"\$(gh auth token" module/darwin/profile.nix
+grep -q "\.config/\.bunfig\.toml" mdm/iru-trial-packages.sh
+'
+need "Iru bunfig writer: runs as sable, merges only the scope (other Bun settings kept), 600, refuses symlinks (no root redirect)" bash -c '
+set -eu
+f=mdm/iru-trial-packages.sh
+grep -q "sudo -u sable -H /usr/bin/python3 -I -c \"\$merge_py\"" $f
+! grep -qE "cat >\"?\\\$bunfig" $f
+prog=$(sed -n "/^merge_py=/,/^os.replace/p" $f | sed -e "1s/^merge_py=.//" -e "\$ s/.\$//")
+h=$(mktemp -d)
+printf "%s\n" "[install]" "exact = true" "" "[install.scopes]" "\"@sable-inc\" = { url = \"x\", token = \"old\" }" "\"@other\" = \"y\"" > "$h/.bunfig.toml"
+printf "pkg-read" | python3 -I -c "$prog" "$h" .bunfig.toml
+printf "pkg-read" | python3 -I -c "$prog" "$h" .config/.bunfig.toml
+grep -q "exact = true" "$h/.bunfig.toml"; grep -q "@other" "$h/.bunfig.toml"
+for x in .bunfig.toml .config/.bunfig.toml; do
+  [ "$(grep -c "@sable-inc" "$h/$x")" = 1 ]; grep -q "token = \"pkg-read\"" "$h/$x"
+  [ "$(stat -c %a "$h/$x" 2>/dev/null || stat -f %Lp "$h/$x")" = 600 ]
+done
+mkdir "$h/away"; rm -rf "$h/.config"; ln -s "$h/away" "$h/.config"
+printf "pkg-read" | python3 -I -c "$prog" "$h" .config/.bunfig.toml 2>/dev/null && exit 1
+[ -z "$(ls -A "$h/away")" ]
+rm "$h/.config"; mkdir "$h/.config"; ln -s "$h/away/t" "$h/.config/.bunfig.toml"
+printf "pkg-read" | python3 -I -c "$prog" "$h" .config/.bunfig.toml 2>/dev/null && exit 1
+[ ! -e "$h/away/t" ]
+'
+need "Iru writes only the bunfig scope (both paths) and ships no token" sh -c '
 f=mdm/iru-trial-packages.sh
 grep -q "github-trial-packages-token" $f && grep -q "token=\"\"" $f &&
 grep -q "\[install.scopes\]" $f && grep -q "@sable-inc" $f &&
-grep -q "npm.pkg.github.com" $f && grep -q "chmod 600" $f &&
+grep -q "npm.pkg.github.com" $f && grep -q "0o600" $f &&
 grep -q "does not touch credentials.json" $f &&
 grep -q "TRIAL_TYPE" $f && grep -q "not ds" $f
 '
