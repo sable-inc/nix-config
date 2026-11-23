@@ -154,6 +154,18 @@ For each Mac:
    is `<asset tag>@sable.ai`: the hire's email, or the slot's for a trial (`trial1@sable.ai`).
    If not, set the owner there
 
+6. **Trial Mac only: computer use, once per Mac.** Iru's "Sable: Computer use (Orca, Claude,
+   ChatGPT)" profile already allows Accessibility and Automation for Orca, Claude and ChatGPT.
+   macOS doesn't let any MDM turn on Screen Recording or system audio recording, so someone
+   at the Mac does it once. Log in as `sable`, open **System Settings > Privacy & Security >
+   Screen & System Audio Recording**, and turn on **Orca**, **Orca Computer Use**, **Claude**
+   and **ChatGPT** (use **+** to add any that are missing; Orca Computer Use is inside
+   Orca.app, Contents > Resources). Then, under **System Audio Recording Only** on the same
+   page, turn on **Orca**. When macOS asks, click **Quit & Reopen**. Trial cleanups don't
+   undo this, so it only has to be done again after an erase. The Onboarding bot checks it
+   the night before each trial (Iru item "ONB computer-use check (read-only)"); if a switch is
+   off, the host turns it on the trial morning before the trialer starts
+
 The Mac is ready. Hand it over, or put it away until the trial or start date.
 
 ## Part G. The person's first morning
@@ -210,7 +222,7 @@ trial's last day**, then a `sable-setup` check. A full erase is the exception an
    - app sign-ins: signs out of the trialer's personal apps; keeps the slot's Chrome, Claude Code, Codex, Cursor,
      Claude app, ChatGPT app, Slack and 1Password sign-ins and clears their chats and history (trial-tools KEEP_LOGIN).
      Chrome sync is off on trial Macs (`mdm/chrome-trial-sync.mobileconfig`), so synced history and bookmarks do not come back
-3. It leaves Wi-Fi networks, system settings, config profiles and Homebrew packages as they are
+3. It leaves Wi-Fi networks, system settings, privacy permissions (Screen Recording, Accessibility), config profiles and Homebrew packages as they are
 4. Run the `sable-setup` check and read back that it passes. The trialer's own apps are signed out. The slot's Chrome, Claude Code, Codex, Cursor, Claude app, ChatGPT, Slack and 1Password sign-ins remain, and on a DS slot so does `~/.config/sable/credentials.json`. GitHub does not: cleanup deletes it, and `sable-setup` signs the slot back in.
    On a DS trial, `sable-doctor` requires `sable --version` and `sable whoami` as that slot's
    own trial account (`trial@sable.ai` on `sable-trial`, `trial1@sable.ai` on `sable-trial1`).

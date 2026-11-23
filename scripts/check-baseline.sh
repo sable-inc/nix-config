@@ -13,6 +13,36 @@ need() { # need <description> <command...>; a failure prints the command's outpu
 }
 py() { python3 -I -c "$@"; }
 
+need "computer-use PPPC profile: Orca, Orca Computer Use, Claude and ChatGPT get Accessibility + PostEvent + Automation; ScreenCapture only user-approvable; each code requirement is that app's Developer ID team" py '
+import plistlib, re
+d = plistlib.load(open("mdm/computer-use-pppc.mobileconfig", "rb"))
+assert d["PayloadScope"] == "System" and d["PayloadType"] == "Configuration"
+p = [x for x in d["PayloadContent"] if x["PayloadType"] == "com.apple.TCC.configuration-profile-policy"]
+assert len(p) == 1
+s = p[0]["Services"]
+assert set(s) == {"Accessibility", "PostEvent", "ScreenCapture", "AppleEvents"}, set(s)
+team = {"com.stablyai.orca": "6CX3WHS9HZ", "com.stablyai.orca.computer-use": "6CX3WHS9HZ",
+        "com.anthropic.claudefordesktop": "Q6L2SF6YDW", "com.openai.codex": "2DC432GLL2", "com.openai.chat": "2DC432GLL2",
+        "com.openai.sky.CUAService": "2DC432GLL2", "com.openai.sky.CUAService.cli": "2DC432GLL2"}
+for name in ("Accessibility", "PostEvent", "ScreenCapture"):
+    assert {e["Identifier"] for e in s[name]} == set(team), name
+for name, entries in s.items():
+    for e in entries:
+        t = team[e["Identifier"]]
+        assert e["IdentifierType"] == "bundleID" and e["StaticCode"] is False
+        assert e["CodeRequirement"] == ("identifier \"%s\" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = \"%s\"" % (e["Identifier"], t)), e["Identifier"]
+        if name == "ScreenCapture":
+            assert e["Authorization"] == "AllowStandardUserToSetSystemService", "MDM cannot allow ScreenCapture"
+        else:
+            assert e["Authorization"] == "Allow"
+        if name == "AppleEvents":
+            assert e["AEReceiverIdentifier"] in ("com.apple.systemevents", "com.apple.finder")
+            assert e["AEReceiverCodeRequirement"] == "identifier \"%s\" and anchor apple" % e["AEReceiverIdentifier"]
+assert {(e["Identifier"], e["AEReceiverIdentifier"]) for e in s["AppleEvents"]} == {(i, r) for i in team for r in ("com.apple.systemevents", "com.apple.finder")}
+r = [x for x in d["PayloadContent"] if x["PayloadType"] == "com.apple.applicationaccess"]
+assert len(r) == 1 and r[0]["forceBypassScreenCaptureAlert"] is True and len(r[0]) == 6, r
+ids = [x["PayloadUUID"] for x in d["PayloadContent"]] + [d["PayloadUUID"]]
+assert len(set(ids)) == len(ids) and all(re.match(r"^[0-9A-F-]{36}$", i) for i in ids)'
 need "notifications profile parses, one notificationsettings payload, Slack + Orca enabled" py '
 import plistlib
 d = plistlib.load(open("mdm/notifications.mobileconfig", "rb"))
@@ -424,6 +454,6 @@ if ! command -v shellcheck >/dev/null 2>&1; then
   echo "FAIL  shellcheck: not installed. CI installs it with apt-get; install shellcheck and rerun." >&2
   fail=1
 else
-  need "shellcheck: bin and mdm scripts" shellcheck -s bash module/darwin/bin/sable-lib.sh module/darwin/bin/sable-doctor module/darwin/bin/sable-setup module/darwin/bin/sable-accept-invites mdm/iru-bootstrap.sh mdm/iru-doctor.sh mdm/iru-update.sh mdm/iru-vanta.sh mdm/iru-trial-packages.sh scripts/check-baseline.sh
+  need "shellcheck: bin and mdm scripts" shellcheck -s bash module/darwin/bin/sable-lib.sh module/darwin/bin/sable-doctor module/darwin/bin/sable-setup module/darwin/bin/sable-accept-invites mdm/iru-bootstrap.sh mdm/iru-doctor.sh mdm/iru-update.sh mdm/iru-vanta.sh mdm/iru-trial-packages.sh mdm/iru-computer-use-check.sh scripts/check-baseline.sh
 fi
 if [ "$fail" = 0 ]; then echo "check-baseline: PASS"; else echo "check-baseline: FAIL"; exit 1; fi
