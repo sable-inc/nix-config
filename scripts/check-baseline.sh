@@ -42,6 +42,8 @@ grep -q "is-ancestor" $f &&
 ! grep -Eq "reset --hard|checkout -q --detach" $f'
 need "self-updating apps: casks for Cursor/Claude/ChatGPT/Devin, Orca installs from latest release, no greedy or version pin" sh -c '
 grep -q "\"cursor\"" module/darwin/default.nix &&
+grep -q "\"claude\"" module/darwin/default.nix &&
+grep -q "\"chatgpt\"" module/darwin/default.nix &&
 grep -q "devin-desktop" module/darwin/default.nix &&
 grep -q "releases/latest/download" module/darwin/orca.nix &&
 ! grep -Eq "greedy|HOMEBREW_NO_AUTO_UPDATE" module/darwin/default.nix'

@@ -41,7 +41,8 @@ let
       p="$parent"
       while :; do
         [ -d "$p" ] && [ ! -L "$p" ] || return 1
-        [ -z "$(/usr/bin/find "$p" -maxdepth 0 \( -not -user $owner -o -perm -020 -o -perm -002 \) -print 2>/dev/null)" ] || return 1
+        bad="$(/usr/bin/find "$p" -maxdepth 0 \( -not -user $owner -o -perm -020 -o -perm -002 \) -print 2>/dev/null)" || return 1
+        [ -z "$bad" ] || return 1
         if [ "$p" = "$stop" ] || [ "$p" = / ]; then break; fi
         p="$(/usr/bin/dirname "$p")"
       done
@@ -50,7 +51,8 @@ let
     # directory, and .git/config only has the keys a plain clone has (no include, hooks, fsmonitor, filter, alias...).
     tree_trusted() {
       [ -d "$dir" ] && [ ! -L "$dir" ] && [ -d "$dir/.git" ] && [ ! -L "$dir/.git" ] || return 1
-      [ -z "$(/usr/bin/find "$dir" \( -not -user $tree_owner -o \( ! -type l -a \( -perm -020 -o -perm -002 \) \) \) -print -quit 2>/dev/null)" ] || return 1
+      bad="$(/usr/bin/find "$dir" \( -not -user $tree_owner -o \( ! -type l -a \( -perm -020 -o -perm -002 \) \) \) -print -quit 2>/dev/null)" || return 1
+      [ -z "$bad" ] || return 1
       keys="$(git config --file "$dir/.git/config" --name-only --list 2>/dev/null)" || return 1
       [ -z "$(printf '%s\n' "$keys" | /usr/bin/grep -Evi '^(core\.(repositoryformatversion|filemode|bare|logallrefupdates|ignorecase|precomposeunicode|symlinks)|remote\.origin\.(url|fetch)|branch\..+\.(remote|merge))$')" ] || return 1
     }
