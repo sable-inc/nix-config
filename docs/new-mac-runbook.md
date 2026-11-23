@@ -162,9 +162,11 @@ For each Mac:
    (use **+** to add any that are missing; Orca Computer Use is inside
    Orca.app, Contents > Resources). Leave Claude and ChatGPT off. Then, under **System Audio Recording Only** on the same
    page, turn on **Orca**. When macOS asks, click **Quit & Reopen**. Trial cleanups don't
-   undo this, so it only has to be done again after an erase. A daily read-only Iru
-   check (item "ONB computer-use check (read-only)") logs it, and the Onboarding bot reads that log
-   the night before each trial; if a switch is off, the host turns it on the trial morning before the trialer starts
+   undo this, so it only has to be done again after an erase. The Iru item "ONB computer-use check (read-only)"
+   runs daily and only prints what it reads. Its per-device run output is in Iru (the item's
+   status, one row per Mac, with the script output in its log; API: `GET /library/library-items/<id>/status`),
+   and the Onboarding bot reads that output the night before each trial; if a switch is off,
+   the host turns it on the trial morning before the trialer starts
 
 The Mac is ready. Hand it over, or put it away until the trial or start date.
 
