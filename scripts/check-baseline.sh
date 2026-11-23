@@ -63,26 +63,92 @@ assert len(p) == 1
 e = {s["BundleIdentifier"]: s for s in p[0]["NotificationSettings"]}
 for b in ("com.tinyspeck.slackmacgap", "com.stablyai.orca"):
     assert e[b]["NotificationsEnabled"] is True and e[b]["AlertType"] in (1, 2)'
-need "Claude managed settings pin the plugin marketplaces (plugin autoUpdate off keeps the SHA pins) and never disable Claude Code self-update" py '
-import json, re
+need "Claude managed settings: plugin marketplaces follow the default branch (autoUpdate on, no ref pin) and never disable Claude Code self-update" py '
+import json
 d = json.load(open("module/darwin/config/claude-managed-settings.json"))
 m = d["extraKnownMarketplaces"]
-sha = re.compile(r"^[0-9a-f]{40}$")
-for name, repo, ref in (
-    ("cursor-plugins", "cursor/plugins", "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"),
-    ("openai-codex", "openai/codex-plugin-cc", "db52e28f4d9ded852ab3942cea316258ae4ef346"),
-):
-    src = m[name]["source"]
-    assert src == {"source": "github", "repo": repo, "ref": ref}
-    assert sha.match(src["ref"])
-    assert m[name]["autoUpdate"] is False
+for name, repo in (("cursor-plugins", "cursor/plugins"), ("openai-codex", "openai/codex-plugin-cc")):
+    assert m[name]["source"] == {"source": "github", "repo": repo}, "no ref/sha pin allowed"
+    assert m[name]["autoUpdate"] is True
 assert d["enabledPlugins"] == {"pstack@cursor-plugins": True, "codex@openai-codex": True}
-assert set(d) == {"extraKnownMarketplaces", "enabledPlugins"}, "managed settings may only pin plugins: no env/autoUpdatesChannel/DISABLE_*"'
-need "agents.nix is imported and installs managed settings + /etc/codex/skills" sh -c '
-grep -q "./agents.nix" module/darwin/default.nix &&
-grep -q "ClaudeCode/managed-settings.json" module/darwin/agents.nix &&
-grep -q "/etc/codex/skills" module/darwin/agents.nix &&
-grep -Eq "pstackRev = \"[0-9a-f]{40}\"" module/darwin/agents.nix'
+assert set(d) == {"extraKnownMarketplaces", "enabledPlugins"}, "managed settings may only set plugins: no env/autoUpdatesChannel/DISABLE_*"'
+need "pstack checkout follows cursor/plugins (no pinned rev), fast-forward only, updated daily by launchd and at activation" sh -c '
+f=module/darwin/agents.nix
+! grep -Eq "pstackRev|[0-9a-f]{40}" $f &&
+grep -q "launchd.daemons.sable-pstack-update" $f &&
+tr -d "\n " <$f | grep -q "StartCalendarInterval=\[{Hour=4;Minute=15;}\]" &&
+grep -q -- "--unshallow" $f &&
+! grep -q -- "--depth" $f &&
+grep -q "merge -q --ff-only" $f &&
+grep -q "is-ancestor" $f &&
+! grep -Eq "reset --hard|checkout -q --detach" $f'
+need "self-updating apps: casks for Cursor/Claude/ChatGPT/Devin, Orca installs from latest release, no greedy or version pin" sh -c '
+grep -q "\"cursor\"" module/darwin/default.nix &&
+grep -q "\"claude\"" module/darwin/default.nix &&
+grep -q "\"chatgpt\"" module/darwin/default.nix &&
+grep -q "devin-desktop" module/darwin/default.nix &&
+grep -q "releases/latest/download" module/darwin/orca.nix &&
+! grep -Eq "greedy|HOMEBREW_NO_AUTO_UPDATE" module/darwin/default.nix'
+need "weekly flake-update workflow opens a PR (never pushes to fleet) and runs check-baseline" sh -c '
+f=$(ls .github/workflows/flake-update.yml docs/flake-update.workflow.yml 2>/dev/null | head -1)
+grep -q "cron:" $f && grep -q "nix flake update" $f && grep -q "scripts/check-baseline.sh" $f &&
+grep -q "create-pull-request\|gh pr create" $f && ! grep -q ":fleet\|origin fleet" $f'
+need "pstack update (root script): no repo-local execution, ownership/permission/config trust checks re-clone, fail-closed linking" bash -c '
+set -e
+umask 022
+# host system/global git config must not leak into any assertion in this block
+export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
+unset GIT_CONFIG_COUNT GIT_CONFIG_PARAMETERS GIT_DIR GIT_WORK_TREE
+t=$(mktemp -d); trap "rm -rf $t" EXIT
+f=module/darwin/agents.nix
+me=$(id -un); other=$(awk -F: -v me="$me" "\$1!=me && \$1!=\"\"{print \$1; exit}" /etc/passwd)
+# The real script text from agents.nix, run as this user in a sandbox. Substitutions (the only differences from a
+# real run): /etc/codex, the repo URL, the checkout path, HOME and the /Library stop point move into $t; "root" becomes
+# the current user (the test cannot chown to root); and protocol.file.allow=always so a local repo can stand in for
+# GitHub. mk <owner> builds a variant: a different <owner> simulates a checkout owned by a non-root user.
+mk() { sed -n "/writeShellScript \"sable-pstack-update\"/,/^  '"'"''"'"';/p" $f | sed "1d;\$d" \
+  | sed "s#\${pstackRepo}#$t/origin#; s#\${pstackDir}#$t/Sable/co#; s#/etc/codex#$t/etc#g; s#HOME=/var/root#HOME=$t#; s#^    stop=/Library#    stop=$t#; s#^    owner=root#    owner=$me#; s#^    tree_owner=root#    tree_owner=$1#; s#protocol.file.allow=never#protocol.file.allow=always#" >$t/upd-$1.sh; }
+mk "$me"; mk "$other"
+grep -q "sable-pstack-update" $f && grep -q "tree_owner=$me" $t/upd-$me.sh && grep -q "unlink_skills()" $t/upd-$me.sh
+export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
+mkdir $t/etc
+O="git -C $t/origin"
+git init -q $t/origin; mkdir -p $t/origin/harness/pstack/claude-code/skills; : >$t/origin/harness/pstack/claude-code/skills/a
+$O add -A; $O commit -qm one
+upd() { bash $t/upd-${1:-$me}.sh 2>$t/err || { cat $t/err; return 1; }; }
+linked() { [ -L $t/etc/skills ]; }
+head_is() { [ "$(git -C $t/Sable/co rev-parse HEAD)" = "$($O rev-parse HEAD)" ]; }
+bump() { : >$t/origin/harness/pstack/claude-code/skills/$1; $O add -A; $O commit -qm "$1"; }
+upd; linked && head_is || { echo "fresh clone was not made and linked"; exit 1; }
+# 1. planted post-merge hook must not run on update; still updates and links
+printf "#!/bin/sh\ntouch $t/hook-ran\n" >$t/Sable/co/.git/hooks/post-merge; chmod +x $t/Sable/co/.git/hooks/post-merge
+bump b; upd; [ ! -e $t/hook-ran ] || { echo "post-merge hook ran"; exit 1; }
+head_is && linked || { echo "did not update/link with a planted hook"; exit 1; }
+# 2. planted core.fsmonitor / core.hooksPath in .git/config must not run; untrusted config means re-clone
+git -C $t/Sable/co config core.fsmonitor "touch $t/fsmon-ran"; git -C $t/Sable/co config core.hooksPath $t/Sable/co/.git/hooks
+bump c; upd; [ ! -e $t/fsmon-ran ] && [ ! -e $t/hook-ran ] || { echo "repo-local command ran"; exit 1; }
+[ -z "$(git config --file $t/Sable/co/.git/config --get core.fsmonitor || true)" ] && head_is && linked || { echo "poisoned config was not re-cloned"; exit 1; }
+# 3. a file not owned by root (simulated: run the variant whose trusted owner is another user) triggers re-clone, and fails closed
+echo junk >$t/Sable/co/junk; rm -f $t/etc/skills
+if [ -n "$other" ]; then upd "$other"; [ ! -e $t/Sable/co/junk ] || { echo "foreign-owned checkout was kept"; exit 1; }; ! linked || { echo "foreign-owned checkout was linked"; exit 1; }; fi
+upd; linked || { echo "not relinked after re-clone"; exit 1; }
+# 4. a group/other-writable file triggers re-clone
+echo junk >$t/Sable/co/junk; chmod go+w $t/Sable/co/harness/pstack/claude-code/skills/a; upd
+[ ! -e $t/Sable/co/junk ] && linked || { echo "writable file did not trigger re-clone"; exit 1; }
+# 5. a group-writable parent directory: nothing runs in the checkout and the link is removed
+echo junk >$t/Sable/co/junk; chmod 775 $t/Sable; upd; chmod 755 $t/Sable
+[ -e $t/Sable/co/junk ] && ! linked || { echo "untrusted parent was not refused"; exit 1; }
+rm $t/Sable/co/junk; upd; linked || { echo "not relinked"; exit 1; }
+# 6. fail-closed linking: dirty tree, wrong origin, local commit off the default branch
+echo x >$t/Sable/co/dirty; upd; ! linked || { echo "dirty checkout linked"; exit 1; }
+rm $t/Sable/co/dirty
+git -C $t/Sable/co remote set-url origin https://example.com/evil.git; upd; ! linked || { echo "wrong origin linked"; exit 1; }
+git -C $t/Sable/co remote set-url origin $t/origin
+git -C $t/Sable/co commit -q --allow-empty -m local; upd; ! linked || { echo "local commit linked"; exit 1; }
+git -C $t/Sable/co reset -q --hard HEAD~1; upd; linked || { echo "not relinked after recovery"; exit 1; }
+# the script must never run git before the trust check, and never pass a pin
+grep -q "git() { /usr/bin/git -c core.hooksPath=/dev/null -c core.fsmonitor=false" $f
+! grep -Eq "pstackRev|reset --hard|--depth" $f'
 need "Claude Code and Codex are user-owned installs, not nix packages (so they can self-update)" sh -c '
 ! grep -Eq "claude-code.enable|codex.enable" module/shared/home-manager.nix &&
 grep -q "claude.ai/install.sh" module/darwin/bin/sable-setup &&

@@ -3,18 +3,16 @@
     "cursor-plugins": {
       "source": {
         "source": "github",
-        "repo": "cursor/plugins",
-        "ref": "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9"
+        "repo": "cursor/plugins"
       },
-      "autoUpdate": false
+      "autoUpdate": true
     },
     "openai-codex": {
       "source": {
         "source": "github",
-        "repo": "openai/codex-plugin-cc",
-        "ref": "db52e28f4d9ded852ab3942cea316258ae4ef346"
+        "repo": "openai/codex-plugin-cc"
       },
-      "autoUpdate": false
+      "autoUpdate": true
     }
   },
   "enabledPlugins": {
