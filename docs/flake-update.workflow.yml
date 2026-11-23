@@ -1,4 +1,5 @@
 name: flake-update
+# Install: move to .github/workflows/flake-update.yml (needs a token with the workflow scope to push).
 # Base nix CLI tools can't update in place, so refresh flake.lock weekly and open a PR.
 # This never touches the fleet branch: a person merges the PR and releases separately.
 on:

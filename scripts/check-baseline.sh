@@ -44,7 +44,7 @@ grep -q "devin-desktop" module/darwin/default.nix &&
 grep -q "releases/latest/download" module/darwin/orca.nix &&
 ! grep -Eq "greedy|HOMEBREW_NO_AUTO_UPDATE" module/darwin/default.nix'
 need "weekly flake-update workflow opens a PR (never pushes to fleet) and runs check-baseline" sh -c '
-f=.github/workflows/flake-update.yml
+f=$(ls .github/workflows/flake-update.yml docs/flake-update.workflow.yml 2>/dev/null | head -1)
 grep -q "cron:" $f && grep -q "nix flake update" $f && grep -q "scripts/check-baseline.sh" $f &&
 grep -q "create-pull-request\|gh pr create" $f && ! grep -q ":fleet\|origin fleet" $f'
 need "Claude Code and Codex are user-owned installs, not nix packages (so they can self-update)" sh -c '
